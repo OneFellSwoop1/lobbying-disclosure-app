@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lobbying Data Visualization - {{ query }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <style>
+        body {
+            padding-top: 2rem;
+            background-color: #f8f9fa;
+        }
+        .visualizations {
+            background-color: white;
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+        .chart-container {
+            margin-bottom: 3rem;
+        }
+        .chart-title {
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .stats-summary {
+            background-color: #e9ecef;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="bi bi-bar-chart-line"></i> Lobbying Data Analysis</h1>
+            <div>
+                <a href="{{ url_for('export_data', query=query) }}" class="btn btn-success me-2">
+                    <i class="bi bi-download"></i> Export CSV
+                </a>
+                <a href="{{ url_for('show_results', page=1) }}" class="btn btn-outline-primary me-2">
+                    <i class="bi bi-list-ul"></i> Back to Results
+                </a>
+                <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-search"></i> New Search
+                </a>
+            </div>
+        </div>
+        
+        <div class="stats-summary">
+            <div class="row">
+                <div class="col-md-12">
+                    <h3>Analysis for: {{ query }}</h3>
+                    <p class="lead mb-0">Total Filings: {{ count }}</p>
+                </div>
+            </div>
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <div class="visualizations">
+            {% if charts %}
+                {% for chart_id, chart_data in charts %}
+                    <div class="chart-container">
+                        <h3 class="chart-title">
+                            {% if chart_id == 'filings_by_year' %}
+                                <i class="bi bi-calendar-check"></i> Lobbying Filings by Year
+                            {% elif chart_id == 'top_registrants' %}
+                                <i class="bi bi-building"></i> Top Lobbying Firms
+                            {% elif chart_id == 'amount_trend' %}
+                                <i class="bi bi-cash"></i> Lobbying Expenditure Trends
+                            {% else %}
+                                <i class="bi bi-graph-up"></i> Lobbying Data Analysis
+                            {% endif %}
+                        </h3>
+                        <div class="text-center">
+                            <img src="data:image/png;base64,{{ chart_data }}" class="img-fluid" alt="Chart">
+                        </div>
+                        
+                        <div class="mt-3">
+                            {% if chart_id == 'filings_by_year' %}
+                                <p class="text-muted">This chart shows the number of lobbying filings by year, giving you insight into when lobbying activity for {{ query }} was most intense.</p>
+                            {% elif chart_id == 'top_registrants' %}
+                                <p class="text-muted">This chart shows the top lobbying firms that have represented {{ query }} or lobbied on their behalf, based on the number of filings.</p>
+                            {% elif chart_id == 'amount_trend' %}
+                                <p class="text-muted">This chart shows the trend of lobbying expenditures over time for {{ query }}, helping you identify patterns in spending.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i> Not enough data available to generate visualizations. Try a different search query.
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="text-center mb-4">
+            <a href="{{ url_for('show_results', page=1) }}" class="btn btn-outline-primary">
+                <i class="bi bi-list-ul"></i> Back to Results
+            </a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

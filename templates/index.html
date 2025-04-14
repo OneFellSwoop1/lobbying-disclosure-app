@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lobbying Disclosure Search</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <style>
+        body {
+            padding-top: 2rem;
+            background-color: #f8f9fa;
+        }
+        .form-container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .hero-section {
+            background-color: #e9ecef;
+            padding: 3rem 0;
+            margin-bottom: 2rem;
+            border-radius: 10px;
+        }
+        .advanced-search {
+            border-top: 1px solid #dee2e6;
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+        }
+        .or-divider {
+            position: relative;
+            text-align: center;
+            margin: 1.5rem 0;
+        }
+        .or-divider::before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 45%;
+            border-top: 1px solid #dee2e6;
+        }
+        .or-divider::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            right: 0;
+            width: 45%;
+            border-top: 1px solid #dee2e6;
+        }
+        .or-label {
+            display: inline-block;
+            position: relative;
+            padding: 0 1rem;
+            background-color: white;
+            z-index: 1;
+        }
+        .collapsible-section {
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="hero-section text-center">
+            <h1><i class="bi bi-search"></i> Lobbying Disclosure Search</h1>
+            <p class="lead">Search for lobbying filings across government disclosure databases</p>
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="form-container">
+                    <form action="{{ url_for('search_lobbying') }}" method="post">
+                        <!-- Data Source Selection -->
+                        <div class="mb-3">
+                            <label for="data_source" class="form-label">
+                                <i class="bi bi-database"></i> Data Source
+                            </label>
+                            <select class="form-select" id="data_source" name="data_source">
+                                <option value="senate" selected>Senate LDA Database</option>
+                                <option value="house">House Clerk Disclosures</option>
+                                <option value="ny_state" disabled>NY State Ethics Commission (Coming Soon)</option>
+                                <option value="nyc" disabled>NYC Lobbying Search (Coming Soon)</option>
+                            </select>
+                            <div class="form-text">Select which lobbying disclosure database to search</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="name" class="form-label">
+                                <i class="bi bi-person"></i> Lobbyist Name
+                            </label>
+                            <input type="text" class="form-control" id="name" name="name" 
+                                   placeholder="Enter lobbyist name">
+                            <div class="form-text">Search for filings associated with a specific lobbyist</div>
+                        </div>
+                        
+                        <div class="or-divider">
+                            <span class="fw-bold or-label">OR</span>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="company" class="form-label">
+                                <i class="bi bi-building"></i> Company/Organization Name
+                            </label>
+                            <input type="text" class="form-control" id="company" name="company" 
+                                   placeholder="Enter company or organization name">
+                            <div class="form-text">Search for filings where this entity is a client or registrant</div>
+                        </div>
+                        
+                        <!-- Advanced search options (hidden by default) -->
+                        <div class="advanced-search">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0">Advanced Options</h5>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                        data-bs-toggle="collapse" data-bs-target="#advancedOptions" 
+                                        aria-expanded="false" aria-controls="advancedOptions">
+                                    <i class="bi bi-chevron-down"></i> Show
+                                </button>
+                            </div>
+                            
+                            <div class="collapse" id="advancedOptions">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="year_from" class="form-label">
+                                                <i class="bi bi-calendar"></i> Year From
+                                            </label>
+                                            <select class="form-select" id="year_from" name="year_from">
+                                                <option value="">Any</option>
+                                                <!-- Generate years dynamically from 1995 to current year -->
+                                                {% for year in range(1995, 2026) %}
+                                                <option value="{{ year }}">{{ year }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="year_to" class="form-label">
+                                                <i class="bi bi-calendar"></i> Year To
+                                            </label>
+                                            <select class="form-select" id="year_to" name="year_to">
+                                                <option value="">Any</option>
+                                                <!-- Generate years dynamically from 1995 to current year -->
+                                                {% for year in range(1995, 2026) %}
+                                                <option value="{{ year }}">{{ year }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="issue_area" class="form-label">
+                                        <i class="bi bi-tag"></i> Issue Area
+                                    </label>
+                                    <select class="form-select" id="issue_area" name="issue_area">
+                                        <option value="">Any</option>
+                                        <option value="ACCOUNTING">Accounting</option>
+                                        <option value="ADVERTISING">Advertising</option>
+                                        <option value="AEROSPACE">Aerospace</option>
+                                        <option value="AGRICULTURE">Agriculture</option>
+                                        <option value="ALCOHOL_TOBACCO">Alcohol & Tobacco</option>
+                                        <option value="ANIMALS">Animals</option>
+                                        <option value="ARTS_ENTERTAINMENT">Arts & Entertainment</option>
+                                        <option value="AUTOMOTIVE">Automotive</option>
+                                        <option value="BANKING">Banking</option>
+                                        <option value="BUDGET_APPROPRIATIONS">Budget/Appropriations</option>
+                                        <option value="CAMPAIGN_FINANCE">Campaign Finance</option>
+                                        <option value="CIVIL_RIGHTS">Civil Rights</option>
+                                        <option value="CLEAN_AIR_WATER">Clean Air & Water</option>
+                                        <option value="COMMODITIES">Commodities</option>
+                                        <option value="COMMUNICATIONS">Communications</option>
+                                        <option value="COMPUTERS_TECHNOLOGY">Computers/Technology</option>
+                                        <option value="CONSUMER_ISSUES">Consumer Issues</option>
+                                        <option value="COPYRIGHT">Copyright/Patent/Trademark</option>
+                                        <option value="DEFENSE">Defense</option>
+                                        <option value="EDUCATION">Education</option>
+                                        <option value="ENERGY">Energy</option>
+                                        <option value="ENVIRONMENT">Environment</option>
+                                        <option value="FAMILY_ISSUES">Family Issues</option>
+                                        <option value="FINANCE">Finance</option>
+                                        <option value="FIREARMS_AMMUNITION">Firearms/Ammunition</option>
+                                        <option value="FOOD_INDUSTRY">Food Industry</option>
+                                        <option value="FOREIGN_RELATIONS">Foreign Relations</option>
+                                        <option value="FUEL_GAS_OIL">Fuel/Gas/Oil</option>
+                                        <option value="GAMING_GAMBLING">Gaming/Gambling</option>
+                                        <option value="GOVERNMENT_ISSUES">Government Issues</option>
+                                        <option value="HEALTH_ISSUES">Health Issues</option>
+                                        <option value="HOUSING">Housing</option>
+                                        <option value="IMMIGRATION">Immigration</option>
+                                        <option value="INSURANCE">Insurance</option>
+                                        <option value="LABOR_ISSUES">Labor Issues</option>
+                                        <option value="LAW_ENFORCEMENT">Law Enforcement</option>
+                                        <option value="MANUFACTURING">Manufacturing</option>
+                                        <option value="MEDIA_INFO">Media/Information</option>
+                                        <option value="MEDICARE_MEDICAID">Medicare/Medicaid</option>
+                                        <option value="POSTAL">Postal</option>
+                                        <option value="REAL_ESTATE">Real Estate</option>
+                                        <option value="RETIREMENT">Retirement</option>
+                                        <option value="ROADS_HIGHWAYS">Roads & Highways</option>
+                                        <option value="SCIENCE_TECHNOLOGY">Science & Technology</option>
+                                        <option value="SMALL_BUSINESS">Small Business</option>
+                                        <option value="SPORTS">Sports</option>
+                                        <option value="TAXATION">Taxation</option>
+                                        <option value="TELECOMMUNICATIONS">Telecommunications</option>
+                                        <option value="TRADE">Trade</option>
+                                        <option value="TRANSPORTATION">Transportation</option>
+                                        <option value="TRAVEL_TOURISM">Travel/Tourism</option>
+                                        <option value="UTILITIES">Utilities</option>
+                                        <option value="VETERANS">Veterans</option>
+                                        <option value="WELFARE">Welfare</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="agency" class="form-label">
+                                        <i class="bi bi-bank"></i> Government Agency
+                                    </label>
+                                    <input type="text" class="form-control" id="agency" name="agency" 
+                                           placeholder="E.g., DOD, EPA, FCC">
+                                    <div class="form-text">Filter by lobbying activities targeting specific government agencies</div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="amount_min" class="form-label">
+                                        <i class="bi bi-currency-dollar"></i> Minimum Amount (USD)
+                                    </label>
+                                    <input type="number" class="form-control" id="amount_min" name="amount_min" 
+                                           placeholder="Minimum amount in USD">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="items_per_page" class="form-label">
+                                        <i class="bi bi-list-ol"></i> Results Per Page
+                                    </label>
+                                    <select class="form-select" id="items_per_page" name="items_per_page">
+                                        <option value="10">10</option>
+                                        <option value="25" selected>25</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                    </select>
+                                    <div class="form-text">Number of results to display per page</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-search"></i> Search Filings
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <div class="mt-4 text-center">
+                    <p>
+                        This tool searches multiple lobbying disclosure databases.
+                        <br>Primary data sources include Senate LDA API and House Clerk Disclosures.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Toggle button text for advanced options
+        document.addEventListener('DOMContentLoaded', function() {
+            const advancedToggle = document.querySelector('[data-bs-target="#advancedOptions"]');
+            const advancedSection = document.getElementById('advancedOptions');
+            
+            advancedSection.addEventListener('shown.bs.collapse', function () {
+                advancedToggle.innerHTML = '<i class="bi bi-chevron-up"></i> Hide';
+            });
+            
+            advancedSection.addEventListener('hidden.bs.collapse', function () {
+                advancedToggle.innerHTML = '<i class="bi bi-chevron-down"></i> Show';
+            });
+        });
+    </script>
+</body>
+</html>
