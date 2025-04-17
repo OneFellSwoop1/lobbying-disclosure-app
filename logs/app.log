@@ -1,0 +1,107 @@
+2025-04-17 10:33:38,762 - lobbying_app - ERROR - Error initializing data sources: expected 'except' or 'finally' block (ny_state.py, line 246)
+2025-04-17 10:33:38,883 - lobbying_app - ERROR - Traceback (most recent call last):
+  File "C:\Users\NMilano\lobbying-search-app\app.py", line 74, in initialize_data_sources
+    from data_sources.ny_state import NYStateLobbyingDataSource
+  File "C:\Users\NMilano\lobbying-search-app\data_sources\ny_state.py", line 246
+    return None
+               ^
+SyntaxError: expected 'except' or 'finally' block
+
+2025-04-17 10:33:43,793 - lobbying_app - INFO - Home page accessed
+2025-04-17 10:33:52,136 - lobbying_app - INFO - Search initiated - Source: house, Name: , Company: Google, Year range: -, Items per page: 25
+2025-04-17 10:33:52,140 - lobbying_app - INFO - Showing results for 'Google' (Page 1) - Data source: house
+2025-04-17 10:33:52,140 - lobbying_app - ERROR - Invalid data source requested: house
+2025-04-17 10:33:52,144 - lobbying_app - INFO - Home page accessed
+2025-04-17 10:34:03,977 - lobbying_app - INFO - Search initiated - Source: nyc, Name: , Company: Google, Year range: -, Items per page: 25
+2025-04-17 10:34:03,981 - lobbying_app - INFO - Showing results for 'Google' (Page 1) - Data source: nyc
+2025-04-17 10:34:03,981 - lobbying_app - ERROR - Invalid data source requested: nyc
+2025-04-17 10:34:03,986 - lobbying_app - INFO - Home page accessed
+2025-04-17 10:37:09,360 - lobbying_app - ERROR - Error importing or initializing data sources: expected 'except' or 'finally' block (ny_state.py, line 246)
+2025-04-17 10:37:09,362 - lobbying_app - ERROR - Traceback (most recent call last):
+  File "C:\Users\NMilano\lobbying-search-app\app.py", line 68, in <module>
+    from data_sources.ny_state import NYStateLobbyingDataSource
+  File "C:\Users\NMilano\lobbying-search-app\data_sources\ny_state.py", line 246
+    return None
+               ^
+SyntaxError: expected 'except' or 'finally' block
+
+2025-04-17 10:37:13,320 - lobbying_app - INFO - Home page accessed
+2025-04-17 10:37:13,332 - lobbying_app - WARNING - Error closing data source sessions: name 'senate_lda' is not defined
+2025-04-17 10:37:17,858 - lobbying_app - INFO - Search initiated - Source: senate, Name: Google, Company: , Year range: -, Items per page: 25
+2025-04-17 10:37:17,859 - lobbying_app - WARNING - Error closing data source sessions: name 'senate_lda' is not defined
+2025-04-17 10:37:17,862 - lobbying_app - INFO - Showing results for 'Google' (Page 1) - Data source: senate
+2025-04-17 10:37:17,863 - lobbying_app - ERROR - Error in show_results: name 'senate_lda' is not defined
+2025-04-17 10:37:17,865 - lobbying_app - ERROR - Traceback (most recent call last):
+  File "C:\Users\NMilano\lobbying-search-app\app.py", line 200, in show_results
+    data_source_obj = senate_lda
+                      ^^^^^^^^^^
+NameError: name 'senate_lda' is not defined
+
+2025-04-17 10:37:17,865 - lobbying_app - WARNING - Error closing data source sessions: name 'senate_lda' is not defined
+2025-04-17 10:37:17,871 - lobbying_app - INFO - Home page accessed
+2025-04-17 10:37:17,872 - lobbying_app - WARNING - Error closing data source sessions: name 'senate_lda' is not defined
+2025-04-17 10:37:28,969 - lobbying_app - INFO - Search initiated - Source: nyc, Name: , Company: google, Year range: -, Items per page: 25
+2025-04-17 10:37:28,970 - lobbying_app - WARNING - Error closing data source sessions: name 'senate_lda' is not defined
+2025-04-17 10:37:28,974 - lobbying_app - INFO - Showing results for 'google' (Page 1) - Data source: nyc
+2025-04-17 10:37:28,974 - lobbying_app - ERROR - Error in show_results: name 'nyc' is not defined
+2025-04-17 10:37:28,976 - lobbying_app - ERROR - Traceback (most recent call last):
+  File "C:\Users\NMilano\lobbying-search-app\app.py", line 206, in show_results
+    data_source_obj = nyc
+                      ^^^
+NameError: name 'nyc' is not defined
+
+2025-04-17 10:37:28,976 - lobbying_app - WARNING - Error closing data source sessions: name 'senate_lda' is not defined
+2025-04-17 10:37:28,981 - lobbying_app - INFO - Home page accessed
+2025-04-17 10:37:28,982 - lobbying_app - WARNING - Error closing data source sessions: name 'senate_lda' is not defined
+2025-04-17 10:37:38,266 - lobbying_app - INFO - Search initiated - Source: senate, Name: , Company: Apple, Year range: -, Items per page: 25
+2025-04-17 10:37:38,266 - lobbying_app - WARNING - Error closing data source sessions: name 'senate_lda' is not defined
+2025-04-17 10:37:38,271 - lobbying_app - INFO - Showing results for 'Apple' (Page 1) - Data source: senate
+2025-04-17 10:37:38,271 - lobbying_app - ERROR - Error in show_results: name 'senate_lda' is not defined
+2025-04-17 10:37:38,273 - lobbying_app - ERROR - Traceback (most recent call last):
+  File "C:\Users\NMilano\lobbying-search-app\app.py", line 200, in show_results
+    data_source_obj = senate_lda
+                      ^^^^^^^^^^
+NameError: name 'senate_lda' is not defined
+
+2025-04-17 10:37:38,274 - lobbying_app - WARNING - Error closing data source sessions: name 'senate_lda' is not defined
+2025-04-17 10:37:38,278 - lobbying_app - INFO - Home page accessed
+2025-04-17 10:37:38,279 - lobbying_app - WARNING - Error closing data source sessions: name 'senate_lda' is not defined
+2025-04-17 11:04:00,579 - lobbying_app - ERROR - Error importing data source modules: expected 'except' or 'finally' block (ny_state.py, line 246)
+2025-04-17 11:04:00,581 - lobbying_app - ERROR - Traceback (most recent call last):
+  File "C:\Users\NMilano\lobbying-search-app\app.py", line 73, in <module>
+    from data_sources.ny_state import NYStateLobbyingDataSource
+  File "C:\Users\NMilano\lobbying-search-app\data_sources\ny_state.py", line 246
+    return None
+               ^
+SyntaxError: expected 'except' or 'finally' block
+
+2025-04-17 11:04:02,620 - lobbying_app - INFO - Home page accessed
+2025-04-17 11:04:05,895 - lobbying_app - INFO - Search initiated - Source: senate, Name: Google, Company: , Year range: -, Items per page: 25
+2025-04-17 11:04:05,900 - lobbying_app - INFO - Showing results for 'Google' (Page 1) - Data source: senate
+2025-04-17 11:04:05,900 - lobbying_app - ERROR - Data source 'senate' is None
+2025-04-17 11:04:05,906 - lobbying_app - INFO - Home page accessed
+2025-04-17 11:37:04,272 - lobbying_app - ERROR - Error importing data source modules: expected 'except' or 'finally' block (ny_state.py, line 246)
+2025-04-17 11:37:04,274 - lobbying_app - ERROR - Traceback (most recent call last):
+  File "C:\Users\NMilano\lobbying-search-app\app.py", line 73, in <module>
+    from data_sources.ny_state import NYStateLobbyingDataSource
+  File "C:\Users\NMilano\lobbying-search-app\data_sources\ny_state.py", line 246
+    return None
+               ^
+SyntaxError: expected 'except' or 'finally' block
+
+2025-04-17 11:37:07,029 - lobbying_app - INFO - Home page accessed
+2025-04-17 11:37:10,233 - lobbying_app - INFO - Search initiated - Source: senate, Name: google, Company: , Year range: -, Items per page: 25
+2025-04-17 11:37:10,239 - lobbying_app - INFO - Showing results for 'google' (Page 1) - Data source: senate
+2025-04-17 11:37:10,240 - lobbying_app - ERROR - Data source 'senate' is None
+2025-04-17 11:37:10,243 - lobbying_app - INFO - Home page accessed
+2025-04-17 12:29:57,743 - lobbying_app - INFO - LDA_API_KEY found: 065af...
+2025-04-17 12:29:57,765 - lobbying_app - INFO - Successfully imported available data source modules
+2025-04-17 12:29:58,012 - lobbying_app.senate_lda - ERROR - Error connecting to Senate LDA API: Status 400
+2025-04-17 12:29:58,293 - lobbying_app - ERROR - Senate API connection failed: 400
+2025-04-17 12:55:18,784 - lobbying_app - INFO - LDA_API_KEY found: 065af...
+2025-04-17 15:18:06,300 - lobbying_app - INFO - LDA_API_KEY found: 065af...
+2025-04-17 15:29:11,379 - lobbying_app - INFO - LDA_API_KEY found: 065af...
+2025-04-17 15:35:02,183 - lobbying_app - INFO - LDA_API_KEY found: 065af...
+2025-04-17 15:40:42,785 - lobbying_app - INFO - LDA_API_KEY found: 065af...
+2025-04-17 16:26:44,460 - lobbying_app - INFO - LDA_API_KEY found: 065af...
+2025-04-17 16:26:46,283 - lobbying_app - INFO - LDA_API_KEY found: 065af...

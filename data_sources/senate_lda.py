@@ -2,18 +2,23 @@
 import requests
 import urllib.parse
 import json
+import logging
 from datetime import datetime
 import re
 from collections import defaultdict, Counter
 
 from .base import LobbyingDataSource
 
+# Setup a logger for this module
+logger = logging.getLogger('senate_lda')
+
 class SenateLDADataSource(LobbyingDataSource):
     """Senate Lobbying Disclosure Act database data source."""
     
     def __init__(self, api_key, api_base_url="https://lda.senate.gov/api/v1/"):
-        self.api_key = api_key.strip()
+        self.api_key = api_key.strip() if api_key else ""
         self.api_base_url = api_base_url
+        logger.info(f"Initialized Senate LDA data source with API key: {self.api_key[:3]}{'*' * (len(self.api_key) - 3) if self.api_key else 'None'}")
     
     @property
     def source_name(self) -> str:
@@ -45,53 +50,110 @@ class SenateLDADataSource(LobbyingDataSource):
         
         # Properly encode the query
         encoded_query = urllib.parse.quote(query)
+        logger.info(f"Searching for: {query} (is_person={is_person})")
         
-        # Format URLs based on what works with the API
+        # Try company search first regardless of is_person
+        # This could be part of the issue - Senate API might want a different approach
+        search_urls = []
+        
+        # For person searches (lobbying)
         if is_person:
-            # For person searches
-            search_url = f"{self.api_base_url}filings/?search={encoded_query}&page={page}&page_size={page_size}"
+            # Try multiple variants for person search
+            search_urls = [
+                f"{self.api_base_url}filings/?search={encoded_query}&page={page}&page_size={page_size}",
+                f"{self.api_base_url}filings/?lobbyist_name={encoded_query}&page={page}&page_size={page_size}",
+                f"{self.api_base_url}lobbyists/?name={encoded_query}"
+            ]
         else:
-            # For company searches
-            search_url = f"{self.api_base_url}filings/?client_name={encoded_query}&page={page}&page_size={page_size}"
+            # For organization/company searches
+            search_urls = [
+                f"{self.api_base_url}filings/?client_name={encoded_query}&page={page}&page_size={page_size}",
+                f"{self.api_base_url}filings/?registrant_name={encoded_query}&page={page}&page_size={page_size}",
+                f"{self.api_base_url}filings/?search={encoded_query}&page={page}&page_size={page_size}",
+                f"{self.api_base_url}clients/?name={encoded_query}",
+                f"{self.api_base_url}registrants/?name={encoded_query}"
+            ]
+        
+        # Add year filters to all URLs if specified
+        if year_from or year_to:
+            for i in range(len(search_urls)):
+                if "?" in search_urls[i]:
+                    if year_from and "filing_year__gte" not in search_urls[i]:
+                        search_urls[i] += f"&filing_year__gte={year_from}"
+                    if year_to and "filing_year__lte" not in search_urls[i]:
+                        search_urls[i] += f"&filing_year__lte={year_to}"
+        
+        # Add direct entity search as fallback (important for organizations like Goldman Sachs)
+        if not is_person:
+            # Add direct entity lookup - sometimes needed for exact names
+            search_urls.append(f"{self.api_base_url}registrants/search/?name={encoded_query}")
+            search_urls.append(f"{self.api_base_url}clients/search/?name={encoded_query}")
+        
+        # Debug all URLs we'll be trying
+        logger.info(f"Will try {len(search_urls)} different search URL patterns")
+        for i, url in enumerate(search_urls):
+            logger.info(f"Search URL option {i+1}: {url}")
+        
+        response = None
+        successful_url = None
         
         try:
-            # Make the API request
-            response = requests.get(search_url, headers=headers, timeout=15)  # Increased timeout for larger results
-            status_code = response.status_code
-            
-            # If first attempt fails, try alternative search methods
-            if status_code != 200:
-                # List of alternative search URLs to try
-                alternative_urls = [
-                    f"{self.api_base_url}filings/?search={encoded_query}&page={page}&page_size={page_size}",
-                    f"{self.api_base_url}filings/?registrant_name={encoded_query}&page={page}&page_size={page_size}",
-                    f"{self.api_base_url}clients/?name={encoded_query}",
-                    f"{self.api_base_url}registrants/?name={encoded_query}"
-                ]
-                
-                # Try each alternative
-                for alt_url in alternative_urls:
-                    response = requests.get(alt_url, headers=headers, timeout=15)
+            # Try each URL in sequence
+            for search_url in search_urls:
+                try:
+                    # Make API request with additional debugging
+                    logger.info(f"Making API request to: {search_url}")
+                    response = requests.get(search_url, headers=headers, timeout=30)
                     status_code = response.status_code
                     
+                    # Debug response
                     if status_code == 200:
+                        logger.info(f"Successful response from URL: {search_url}")
+                        successful_url = search_url
                         break
+                    else:
+                        # Log error details
+                        logger.warning(f"API request failed with status {status_code} for URL: {search_url}")
+                        logger.warning(f"Response content: {response.text[:300]}")
+                except requests.RequestException as e:
+                    logger.warning(f"Request exception for URL {search_url}: {str(e)}")
+                    continue
             
-            # Check if we got a successful response
-            if status_code != 200:
-                return [], 0, {"total_pages": 0}, f"API returned status code {status_code}: {response.text[:100]}"
+            # If all attempts failed
+            if not successful_url:
+                logger.error("All API search attempts failed")
+                if response:
+                    error_detail = f"Last status code: {response.status_code}, Response: {response.text[:200]}"
+                    logger.error(error_detail)
+                    return [], 0, {"total_pages": 0}, f"API search failed: {error_detail}"
+                else:
+                    return [], 0, {"total_pages": 0}, "Failed to connect to any API endpoints"
             
-            # Parse the response data
-            data = response.json()
+            # Process successful response
+            try:
+                data = response.json()
+                logger.info(f"Successfully parsed JSON response from {successful_url}")
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to decode JSON: {str(e)}")
+                return [], 0, {"total_pages": 0}, f"Failed to decode API response: {str(e)}"
             
             # Check data format and extract results
             count = 0
             results = []
             
+            # Debug the response structure
+            if isinstance(data, dict):
+                logger.info(f"Response is a dictionary with keys: {', '.join(data.keys())}")
+            elif isinstance(data, list):
+                logger.info(f"Response is a list with {len(data)} items")
+            else:
+                logger.info(f"Response is a {type(data)}")
+            
             if isinstance(data, dict) and "results" in data:
                 # Standard format with results array
                 count = data.get("count", 0)
                 results_data = data.get("results", [])
+                logger.info(f"Found {count} results in API response")
                 
                 # Process each filing in the results
                 for filing in results_data:
@@ -104,6 +166,7 @@ class SenateLDADataSource(LobbyingDataSource):
             elif isinstance(data, list):
                 # Direct list of results
                 count = len(data)
+                logger.info(f"Found {count} results (list format) in API response")
                 
                 for filing in data:
                     filing_data = self._process_filing(filing)
@@ -113,10 +176,68 @@ class SenateLDADataSource(LobbyingDataSource):
                         results.append(filing_data)
             else:
                 # Unexpected format
+                logger.error(f"Unknown API response format: {type(data)}")
                 return [], 0, {"total_pages": 0}, "Unknown API response format"
+            
+            # If this was an entity search (clients or registrants endpoint)
+            # then we need to fetch the actual filings
+            if any(endpoint in successful_url for endpoint in ["clients/", "registrants/", "lobbyists/"]):
+                logger.info(f"Processing entity search results to find related filings")
+                entity_filings = []
+                
+                # This determines if we're dealing with client, registrant or lobbyist
+                entity_type = None
+                if "clients/" in successful_url:
+                    entity_type = "client"
+                elif "registrants/" in successful_url:
+                    entity_type = "registrant" 
+                elif "lobbyists/" in successful_url:
+                    entity_type = "lobbyist"
+                
+                # Limit to first 5 entities to avoid too many requests
+                entity_limit = min(5, len(data))
+                logger.info(f"Will process first {entity_limit} entities from {entity_type} search")
+                
+                for entity in data[:entity_limit]:
+                    if isinstance(entity, dict) and "id" in entity:
+                        entity_id = entity.get("id")
+                        entity_name = entity.get("name", "Unknown")
+                        logger.info(f"Fetching filings for {entity_type} '{entity_name}' (ID: {entity_id})")
+                        
+                        # Get filings for this entity
+                        filings_url = f"{self.api_base_url}filings/?{entity_type}={entity_id}&page=1&page_size={page_size}"
+                        try:
+                            filings_response = requests.get(filings_url, headers=headers, timeout=30)
+                            if filings_response.status_code == 200:
+                                filings_data = filings_response.json()
+                                logger.info(f"Got response for {entity_type} filings request")
+                                
+                                if isinstance(filings_data, dict) and "results" in filings_data:
+                                    count = filings_data.get("count", 0)
+                                    logger.info(f"Found {count} filings for {entity_type} '{entity_name}'")
+                                    
+                                    for filing in filings_data.get("results", []):
+                                        filing_data = self._process_filing(filing)
+                                        if self._should_include_filing(filing_data, year_from, year_to, issue_area, agency, amount_min):
+                                            entity_filings.append(filing_data)
+                                else:
+                                    logger.warning(f"Unexpected response format for {entity_type} filings")
+                            else:
+                                logger.warning(f"Failed to get filings for {entity_type} {entity_id}: Status {filings_response.status_code}")
+                        except Exception as e:
+                            logger.error(f"Error fetching filings for {entity_type} {entity_id}: {str(e)}")
+                
+                # Update results with entity filings
+                if entity_filings:
+                    logger.info(f"Found {len(entity_filings)} filings from entity search")
+                    results = entity_filings
+                    count = len(results)
+                else:
+                    logger.warning(f"No filings found from entity search")
             
             # Update count based on filtered results
             filtered_count = len(results)
+            logger.info(f"After filtering, returning {filtered_count} results")
             
             # Calculate pagination details
             total_pages = (filtered_count + page_size - 1) // page_size if filtered_count > 0 else 1
@@ -129,15 +250,21 @@ class SenateLDADataSource(LobbyingDataSource):
                 "has_prev": has_prev,
                 "next_page": page + 1 if has_next else None,
                 "prev_page": page - 1 if has_prev else None,
-                "page_range": range(max(1, page - 2), min(total_pages + 1, page + 3))
+                "page_range": list(range(max(1, page - 2), min(total_pages + 1, page + 3)))
             }
             
             return results, filtered_count, pagination, None
             
         except requests.RequestException as e:
             error_msg = f"API request error: {str(e)}"
+            logger.error(error_msg)
             return [], 0, {"total_pages": 0, "has_next": False, "has_prev": False, 
-                       "page_range": range(1, 2), "next_page": None, "prev_page": None}, error_msg
+                       "page_range": list(range(1, 2)), "next_page": None, "prev_page": None}, error_msg
+        except Exception as e:
+            error_msg = f"Unexpected error: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            return [], 0, {"total_pages": 0, "has_next": False, "has_prev": False, 
+                       "page_range": list(range(1, 2)), "next_page": None, "prev_page": None}, error_msg
     
     def get_filing_detail(self, filing_id):
         """Get detailed information about a specific filing."""
@@ -150,6 +277,7 @@ class SenateLDADataSource(LobbyingDataSource):
         
         # Make sure filing_id is properly sanitized
         filing_id = str(filing_id).strip()
+        logger.info(f"Getting filing detail for ID: {filing_id}")
         
         # Try different URL formats
         urls_to_try = [
@@ -162,17 +290,21 @@ class SenateLDADataSource(LobbyingDataSource):
         response = None
         for url in urls_to_try:
             try:
-                response = requests.get(url, headers=headers, timeout=10)
+                logger.info(f"Trying URL: {url}")
+                response = requests.get(url, headers=headers, timeout=15)
                 
                 if response.status_code == 200:
                     # Found a working URL format
+                    logger.info(f"Successful response from URL: {url}")
                     break
                     
-            except requests.RequestException:
+            except requests.RequestException as e:
+                logger.warning(f"Request failed for URL {url}: {str(e)}")
                 continue
         
         # After trying all URL formats
         if not response or response.status_code != 200:
+            logger.error(f"All URL attempts failed for filing ID {filing_id}")
             return None, "Could not retrieve filing details. Please try again later."
         
         try:
@@ -185,16 +317,43 @@ class SenateLDADataSource(LobbyingDataSource):
             # Process the filing to extract and format all available information
             processed_filing = self._process_filing_detail(filing)
             
+            # After processing, make an additional request to get lobbyists if they're missing
+            if processed_filing and (not processed_filing.get("lobbyists") or not processed_filing.get("lobbying_activities")):
+                logger.info(f"Incomplete filing data. Making additional requests for filing ID {filing_id}")
+                
+                # Try to get additional data from the filing endpoint
+                additional_url = f"{self.api_base_url}filings/{filing_id}/"
+                try:
+                    additional_response = requests.get(additional_url, headers=headers, timeout=15)
+                    if additional_response.status_code == 200:
+                        additional_data = additional_response.json()
+                        
+                        # Update processed filing with additional data
+                        enhanced_filing = self._process_filing_detail(additional_data)
+                        
+                        # Merge the data, preferring the enhanced version for missing fields
+                        for key, value in enhanced_filing.items():
+                            if key not in processed_filing or not processed_filing[key]:
+                                processed_filing[key] = value
+                            elif isinstance(value, list) and isinstance(processed_filing[key], list):
+                                # Merge lists without duplicates
+                                processed_filing[key] = list(set(processed_filing[key] + value))
+                except Exception as e:
+                    logger.warning(f"Failed to get additional data: {str(e)}")
+            
             return processed_filing, None
             
         except requests.RequestException as e:
             error_msg = f"API request error: {str(e)}"
+            logger.error(error_msg)
             return None, error_msg
         except ValueError as e:
             error_msg = f"Error parsing response: {str(e)}"
+            logger.error(error_msg)
             return None, error_msg
         except Exception as e:
             error_msg = f"Unexpected error: {str(e)}"
+            logger.error(error_msg, exc_info=True)
             return None, error_msg
     
     def fetch_visualization_data(self, query, filters=None):
@@ -230,8 +389,9 @@ class SenateLDADataSource(LobbyingDataSource):
             # Track filing years
             if filing.get("filing_year"):
                 try:
-                    year = int(filing["filing_year"])
-                    years_data[year] += 1
+                    year = str(filing["filing_year"]).strip()
+                    if year.isdigit():
+                        years_data[year] += 1
                 except (ValueError, TypeError):
                     pass
             
@@ -262,14 +422,16 @@ class SenateLDADataSource(LobbyingDataSource):
         # Filter by year range if specified
         if year_from and filing.get("filing_year"):
             try:
-                if int(filing["filing_year"]) < int(year_from):
+                filing_year = str(filing["filing_year"]).strip()
+                if filing_year.isdigit() and int(filing_year) < int(year_from):
                     return False
             except (ValueError, TypeError):
                 pass
                 
         if year_to and filing.get("filing_year"):
             try:
-                if int(filing["filing_year"]) > int(year_to):
+                filing_year = str(filing["filing_year"]).strip()
+                if filing_year.isdigit() and int(filing_year) > int(year_to):
                     return False
             except (ValueError, TypeError):
                 pass
@@ -347,7 +509,7 @@ class SenateLDADataSource(LobbyingDataSource):
                 except (ValueError, TypeError):
                     continue
         
-       # If date still unknown, check every string field for date patterns
+        # If date still unknown, check every string field for date patterns
         if filing_date == "Unknown":
             for key, value in filing.items():
                 if isinstance(value, str) and re.search(r'\d{4}-\d{2}-\d{2}', value):
@@ -400,11 +562,28 @@ class SenateLDADataSource(LobbyingDataSource):
                 for item in filing["lobbyists"]:
                     if isinstance(item, str):
                         lobbyists.append(item)
-                    elif isinstance(item, dict) and "name" in item:
+                    elif isinstance(item, dict):
+                        # Check multiple fields that might contain the name
+                        if "name" in item:
+                            lobbyists.append(item["name"])
+                        elif "lobbyist_name" in item:
+                            lobbyists.append(item["lobbyist_name"])
+                        elif "first_name" in item and "last_name" in item:
+                            lobbyists.append(f"{item['first_name']} {item['last_name']}")
+        elif "lobbyist_list" in filing and isinstance(filing["lobbyist_list"], list):
+            for item in filing["lobbyist_list"]:
+                if isinstance(item, str):
+                    lobbyists.append(item)
+                elif isinstance(item, dict):
+                    if "name" in item:
                         lobbyists.append(item["name"])
-            elif isinstance(filing["lobbyists"], str):
-                # Handle case where it might be a comma-separated string
-                lobbyists = [name.strip() for name in filing["lobbyists"].split(",")]
+                    elif "lobbyist_name" in item:
+                        lobbyists.append(item["lobbyist_name"])
+                    elif "first_name" in item and "last_name" in item:
+                        lobbyists.append(f"{item['first_name']} {item['last_name']}")
+        
+        # Ensure we don't have empty strings in the lobbyists list
+        lobbyists = [lob for lob in lobbyists if lob.strip()]
         
         # Extract issues with multiple fallbacks
         issues_text = ""
@@ -442,25 +621,48 @@ class SenateLDADataSource(LobbyingDataSource):
         if not issues_text:
             issues_text = "No specific issues provided"
         
-        # Extract agencies
+        # Extract agencies with improved handling
         agencies = []
         if "covered_agencies" in filing and filing["covered_agencies"]:
-            agencies = filing["covered_agencies"]
+            if isinstance(filing["covered_agencies"], list):
+                for agency in filing["covered_agencies"]:
+                    if isinstance(agency, str):
+                        agencies.append(agency)
+                    elif isinstance(agency, dict) and "name" in agency:
+                        agencies.append(agency["name"])
+            elif isinstance(filing["covered_agencies"], str):
+                agencies = [a.strip() for a in filing["covered_agencies"].split(',')]
         elif "agencies" in filing and filing["agencies"]:
-            agencies = filing["agencies"]
+            if isinstance(filing["agencies"], list):
+                for agency in filing["agencies"]:
+                    if isinstance(agency, str):
+                        agencies.append(agency)
+                    elif isinstance(agency, dict) and "name" in agency:
+                        agencies.append(agency["name"])
+            elif isinstance(filing["agencies"], str):
+                agencies = [a.strip() for a in filing["agencies"].split(',')]
+        
+        # Ensure we don't have empty strings in the agencies list
+        agencies = [agency for agency in agencies if agency.strip()]
         
         # Get filing year and period information
         filing_year = ""
         if "filing_year" in filing and filing["filing_year"]:
             filing_year = filing["filing_year"]
+        elif "year" in filing and filing["year"]:
+            filing_year = filing["year"]
         
         filing_period = ""
         if "period" in filing and filing["period"]:
             filing_period = filing["period"]
+        elif "filing_period" in filing and filing["filing_period"]:
+            filing_period = filing["filing_period"]
         
         filing_type = ""
         if "filing_type" in filing and filing["filing_type"]:
             filing_type = filing["filing_type"]
+        elif "type" in filing and filing["type"]:
+            filing_type = filing["type"]
         
         # Get amount with multiple fallbacks
         amount = None
@@ -474,8 +676,9 @@ class SenateLDADataSource(LobbyingDataSource):
                     else:
                         # Try to convert string to number
                         clean_amount = str(filing[amount_field]).replace('$', '').replace(',', '')
-                        amount = float(clean_amount)
-                        break
+                        if clean_amount.strip():
+                            amount = float(clean_amount)
+                            break
                 except (ValueError, AttributeError):
                     continue
         
@@ -502,35 +705,95 @@ class SenateLDADataSource(LobbyingDataSource):
         # First use the standard processing to get consistent data
         processed = self._process_filing(filing)
         
-        # Create empty structures for missing data to prevent template errors
-        if "client" not in processed:
-            processed["client"] = {"name": processed.get("client", "Unknown Client")}
-        elif not isinstance(processed["client"], dict):
-            processed["client"] = {"name": processed["client"]}
-            
-        if "registrant" not in processed:
-            processed["registrant"] = {"name": processed.get("registrant", "Unknown Registrant")}
-        elif not isinstance(processed["registrant"], dict):
-            processed["registrant"] = {"name": processed["registrant"]}
-            
-        # Add default lobbying_activities if not present
-        if "lobbying_activities" not in processed:
+        # Create deeper client structure
+        if "client" in filing and isinstance(filing["client"], dict):
+            client_data = filing["client"]
+            processed["client"] = {
+                "name": client_data.get("name", processed.get("client", "Unknown")),
+                "description": client_data.get("general_description", ""),
+                "country": client_data.get("country", "USA"),
+                "state": client_data.get("state", ""),
+                "client_type": client_data.get("client_type", "")
+            }
+        else:
+            processed["client"] = {
+                "name": processed.get("client", "Unknown Client"),
+                "description": "",
+                "country": "USA",
+                "state": "",
+                "client_type": ""
+            }
+        
+        # Create deeper registrant structure 
+        if "registrant" in filing and isinstance(filing["registrant"], dict):
+            registrant_data = filing["registrant"]
+            processed["registrant"] = {
+                "name": registrant_data.get("name", processed.get("registrant", "Unknown")),
+                "description": registrant_data.get("general_description", ""),
+                "country": registrant_data.get("country", "USA"),
+                "state": registrant_data.get("state", "")
+            }
+        else:
+            processed["registrant"] = {
+                "name": processed.get("registrant", "Unknown Registrant"),
+                "description": "",
+                "country": "USA",
+                "state": ""
+            }
+        
+        # Create lobbying_activities structure if not present
+        if "lobbying_activities" not in processed or not processed["lobbying_activities"]:
             processed["lobbying_activities"] = []
             
             # Try to construct from other fields
-            if "general_issue_areas" in filing and filing["general_issue_areas"]:
-                for issue_area in filing["general_issue_areas"]:
+            if "general_issue_areas" in filing:
+                issue_areas = filing["general_issue_areas"]
+                if isinstance(issue_areas, list):
+                    for issue_area in issue_areas:
+                        activity = {
+                            "general_issue_area": issue_area,
+                            "specific_issues": processed.get("issues", "")
+                        }
+                        processed["lobbying_activities"].append(activity)
+                elif issue_areas:  # If it's a string or other non-list
                     activity = {
-                        "general_issue_area": issue_area,
+                        "general_issue_area": str(issue_areas),
                         "specific_issues": processed.get("issues", "")
                     }
                     processed["lobbying_activities"].append(activity)
+            
+            # If we still don't have activities but have issues
+            if not processed["lobbying_activities"] and processed.get("issues"):
+                activity = {
+                    "general_issue_area": "Not Specified",
+                    "specific_issues": processed.get("issues", "")
+                }
+                processed["lobbying_activities"].append(activity)
         
-        # Add description fields if missing
-        for entity in ["client", "registrant"]:
-            if entity in processed and isinstance(processed[entity], dict):
-                for field in ["description", "country", "state", "client_type"]:
-                    if field not in processed[entity]:
-                        processed[entity][field] = None
+        # Add additional fields for detailed view
+        for date_field in ["received_date", "effective_date", "termination_date"]:
+            if date_field in filing:
+                try:
+                    date_value = str(filing[date_field])
+                    if re.match(r'^\d{4}-\d{2}-\d{2}', date_value):
+                        date_obj = datetime.strptime(date_value[:10], "%Y-%m-%d")
+                        processed[date_field] = date_obj.strftime("%b %d, %Y")
+                except (ValueError, TypeError):
+                    processed[date_field] = None
         
-        return processed 
+        # Make sure we have both income and expense amounts
+        if "income_amount" not in processed and processed.get("amount"):
+            processed["income_amount"] = processed["amount"]
+        
+        if "expense_amount" not in processed:
+            processed["expense_amount"] = None
+        
+        # Ensure consistent structure for covered_agencies
+        if "covered_agencies" not in processed:
+            processed["covered_agencies"] = processed.get("agencies", [])
+        
+        # Make sure specific_issues field exists
+        if "specific_issues" not in processed:
+            processed["specific_issues"] = processed.get("issues", "No specific issues provided")
+        
+        return processed

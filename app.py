@@ -10,6 +10,84 @@ import base64
 from collections import defaultdict, Counter
 import pandas as pd
 import numpy as np
+import logging
+from logging.handlers import RotatingFileHandler
+import time
+import traceback
+import requests
+
+# For visualization
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
+import matplotlib.pyplot as plt
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Setup logging
+log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+os.makedirs(log_dir, exist_ok=True)
+
+# Configure logger
+logger = logging.getLogger('lobbying_app')
+logger.setLevel(logging.INFO)
+
+# Create handlers
+file_handler = RotatingFileHandler(
+    os.path.join(log_dir, 'app.log'),
+    maxBytes=10485760,  # 10MB
+    backupCount=10
+)
+console_handler = logging.StreamHandler()
+
+# Create formatters
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
+
+# Add handlers
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
+
+app = Flask(__name__)
+app.secret_key = os.getenv("SECRET_KEY", "dev-secret-key")
+
+# Configure app for longer request processing
+app.config['PERMANENT_SESSION_LIFETIME'] = 1800  # 30 minutes
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload size
+
+# Use the exact environment variable name from your .env file
+LDA_API_KEY = os.getenv("LDA_API_KEY")
+if not LDA_API_KEY:
+    logger.warning("LDA_API_KEY not found in environment variables. API functionality may be limited.")
+else:
+    logger.info(f"LDA_API_KEY found: {LDA_API_KEY[:5]}...")
+
+# Initialize data sources as None first
+senate_lda = None
+house_disclosures = None 
+ny_state = None
+nyc = None
+
+# Create session for making API requests
+session = requests.Session()
+session.headers.update({
+    'User-Agent': 'LobbyingDisclosureApp/1.0',
+    'Accept': 'application/json'
+})
+
+from flask import Flask, render_template, request, jsonify, url_for, redirect, flash, session, make_response
+import os
+from dotenv import load_dotenv
+from datetime import datetime
+import json
+import urllib.parse
+import re
+import io
+import base64
+from collections import defaultdict, Counter
+import pandas as pd
+import numpy as np
 
 # For visualization
 import matplotlib
@@ -26,11 +104,11 @@ app.secret_key = os.getenv("SECRET_KEY", "dev-secret-key")
 LDA_API_KEY = os.getenv("LDA_API_KEY")
 
 # Import data sources
-from data_sources.senate_lda import SenateLDADataSource
+from data_sources.enhanced_senate_lda import EnhancedSenateLDADataSource
 from data_sources.house_disclosures import HouseDisclosuresDataSource
 
 # Initialize data sources
-senate_lda = SenateLDADataSource(LDA_API_KEY)
+senate_lda = EnhancedSenateLDADataSource(LDA_API_KEY)
 house_disclosures = HouseDisclosuresDataSource()
 
 @app.route('/')
