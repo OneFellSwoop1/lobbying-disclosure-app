@@ -15,6 +15,9 @@ from logging.handlers import RotatingFileHandler
 import time
 import traceback
 import requests
+from utils.error_handling import api_error_handler, validate_search_params, handle_api_response
+from utils.caching import app_cache, cached
+from utils.visualization import LobbyingVisualizer
 
 # For visualization
 import matplotlib
@@ -63,6 +66,12 @@ if not LDA_API_KEY:
 else:
     logger.info(f"LDA_API_KEY found: {LDA_API_KEY[:5]}...")
 
+# Initialize visualization tools  
+visualizer = LobbyingVisualizer()
+
+# Initialize cache directory
+cache_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cache')
+os.makedirs(cache_dir, exist_ok=True)
 # Initialize data sources as None first
 senate_lda = None
 house_disclosures = None 
@@ -104,7 +113,7 @@ app.secret_key = os.getenv("SECRET_KEY", "dev-secret-key")
 LDA_API_KEY = os.getenv("LDA_API_KEY")
 
 # Import data sources
-from data_sources.enhanced_senate_lda import EnhancedSenateLDADataSource
+from data_sources.enhanced_senate_lda import ImprovedSenateLDADataSource as EnhancedSenateLDADataSource
 from data_sources.house_disclosures import HouseDisclosuresDataSource
 
 # Initialize data sources
@@ -117,6 +126,7 @@ def index():
     return render_template('index.html')
 
 @app.route('/search-lobbying', methods=['POST'])
+@api_error_handler
 def search_lobbying():
     """Process search form submission."""
     # Extract search parameters from form
@@ -157,6 +167,7 @@ def search_lobbying():
     return redirect(url_for('show_results', page=1))
 
 @app.route('/results/<int:page>')
+@api_error_handler
 def show_results(page):
     """Display search results with pagination."""
     # Get search parameters from session
@@ -227,6 +238,7 @@ def show_results(page):
     )
 
 @app.route('/filing/<string:filing_id>')
+@api_error_handler
 def filing_detail(filing_id):
     """Display detailed information for a specific filing."""
     # Get the data source from session
@@ -255,6 +267,7 @@ def filing_detail(filing_id):
     return render_template('filing_detail.html', filing=filing, data_source=data_source)
 
 @app.route('/visualize/<string:query>')
+@api_error_handler
 def visualize_data(query):
     """Visualize lobbying data for a specific query."""
     # Get search parameters from session
@@ -297,7 +310,7 @@ def visualize_data(query):
     amounts_data = visualization_data.get("amounts_data", [])
     
     # Generate visualizations
-    charts = []
+    charts = visualizer.generate_visualizations(query, results, visualization_data)
     
     # 1. Filings by Year
     if years_data:
@@ -425,6 +438,7 @@ def visualize_data(query):
 
 @app.route('/export/<string:query>')
 @app.route('/export/<string:query>/<int:limit>')
+@api_error_handler
 def export_data(query, limit=None):
     """Export lobbying data as CSV."""
     # Get search parameters from session
