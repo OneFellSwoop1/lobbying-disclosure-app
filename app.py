@@ -113,11 +113,11 @@ app.secret_key = os.getenv("SECRET_KEY", "dev-secret-key")
 LDA_API_KEY = os.getenv("LDA_API_KEY")
 
 # Import data sources
-from data_sources.enhanced_senate_lda import ImprovedSenateLDADataSource as EnhancedSenateLDADataSource
+from data_sources.improved_senate_lda import ImprovedSenateLDADataSource 
 from data_sources.house_disclosures import HouseDisclosuresDataSource
 
 # Initialize data sources
-senate_lda = EnhancedSenateLDADataSource(LDA_API_KEY)
+senate_lda = ImprovedSenateLDADataSource(LDA_API_KEY)
 house_disclosures = HouseDisclosuresDataSource()
 
 @app.route('/')
@@ -297,137 +297,25 @@ def visualize_data(query):
         flash(f"Data source '{data_source}' is not yet implemented.", "error")
         return redirect(url_for('index'))
     
-    # Get visualization data
+    # Get visualization data FIRST
     visualization_data, error = data_source_obj.fetch_visualization_data(query, filters)
     
     if error or not visualization_data:
         flash(f"Error retrieving data for visualization: {error if error else 'No data found'}", "error")
         return redirect(url_for('index'))
     
-    # Prepare data for visualization
-    years_data = visualization_data.get("years_data", {})
-    registrants_data = visualization_data.get("registrants_data", {})
-    amounts_data = visualization_data.get("amounts_data", [])
+    # Get search results SECOND
+    results, _, _, _ = data_source_obj.search_filings(
+        query, 
+        filters=filters,
+        page=1, 
+        page_size=100  # Get a reasonable sample for visualization
+    )
     
-    # Generate visualizations
+    # Generate visualizations THIRD
     charts = visualizer.generate_visualizations(query, results, visualization_data)
     
-    # 1. Filings by Year
-    if years_data:
-        fig, ax = plt.subplots(figsize=(10, 6))
-        years = sorted(years_data.keys())
-        counts = [years_data[year] for year in years]
-        ax.bar(years, counts, color='steelblue')
-        ax.set_xlabel('Year')
-        ax.set_ylabel('Number of Filings')
-        ax.set_title(f'Lobbying Filings by Year for "{query}"')
-        ax.grid(axis='y', linestyle='--', alpha=0.7)
-        
-        # Format x-axis to show all years
-        if len(years) > 10:
-            plt.xticks(rotation=45)
-        
-        # Save chart to buffer
-        buffer = io.BytesIO()
-        plt.tight_layout()
-        plt.savefig(buffer, format='png')
-        buffer.seek(0)
-        filings_by_year_chart = base64.b64encode(buffer.getvalue()).decode('utf-8')
-        plt.close(fig)
-        charts.append(('filings_by_year', filings_by_year_chart))
-    
-    # 2. Top Registrants
-    if registrants_data:
-        # Get top 10 registrants
-        top_registrants = sorted(registrants_data.items(), key=lambda x: x[1], reverse=True)[:10]
-        
-        if top_registrants:
-            fig, ax = plt.subplots(figsize=(10, 6))
-            registrant_names = [r[0] if len(r[0]) < 25 else r[0][:22] + '...' for r in top_registrants]
-            registrant_counts = [r[1] for r in top_registrants]
-            
-            # Create horizontal bar chart
-            bars = ax.barh(registrant_names, registrant_counts, color='lightseagreen')
-            ax.set_xlabel('Number of Filings')
-            ax.set_title(f'Top 10 Lobbying Firms for "{query}"')
-            ax.grid(axis='x', linestyle='--', alpha=0.7)
-            
-            # Add count labels to bars
-            for bar in bars:
-                width = bar.get_width()
-                ax.text(width + 0.1, bar.get_y() + bar.get_height()/2, f'{width:.0f}', 
-                        ha='left', va='center')
-            
-            # Save chart to buffer
-            buffer = io.BytesIO()
-            plt.tight_layout()
-            plt.savefig(buffer, format='png')
-            buffer.seek(0)
-            top_registrants_chart = base64.b64encode(buffer.getvalue()).decode('utf-8')
-            plt.close(fig)
-            charts.append(('top_registrants', top_registrants_chart))
-    
-    # 3. Amount Trends Over Time (if we have enough data)
-    if len(amounts_data) > 5:
-        # Sort by date
-        try:
-            # Convert dates to datetime objects for sorting
-            date_amount_pairs = []
-            for date_str, amount in amounts_data:
-                try:
-                    # Try multiple date formats
-                    date_formats = [
-                        "%b %d, %Y",  # e.g. "Jan 01, 2020"
-                        "%Y-%m-%d",   # e.g. "2020-01-01"
-                        "%m/%d/%Y",   # e.g. "01/01/2020"
-                    ]
-                    
-                    date_obj = None
-                    for fmt in date_formats:
-                        try:
-                            date_obj = datetime.strptime(date_str, fmt)
-                            break
-                        except ValueError:
-                            continue
-                    
-                    if date_obj:
-                        date_amount_pairs.append((date_obj, amount))
-                except:
-                    continue
-            
-            # Sort by date
-            date_amount_pairs.sort(key=lambda x: x[0])
-            
-            if date_amount_pairs:
-                # Create the chart
-                fig, ax = plt.subplots(figsize=(10, 6))
-                dates = [pair[0] for pair in date_amount_pairs]
-                amounts = [pair[1] for pair in date_amount_pairs]
-                
-                ax.plot(dates, amounts, marker='o', linestyle='-', color='teal')
-                ax.set_xlabel('Date')
-                ax.set_ylabel('Amount (USD)')
-                ax.set_title(f'Lobbying Expenditure Trends for "{query}"')
-                ax.grid(True, linestyle='--', alpha=0.7)
-                
-                # Format y-axis as currency
-                ax.yaxis.set_major_formatter('${x:,.0f}')
-                
-                # Rotate date labels for better readability
-                plt.xticks(rotation=45)
-                
-                # Save chart to buffer
-                buffer = io.BytesIO()
-                plt.tight_layout()
-                plt.savefig(buffer, format='png')
-                buffer.seek(0)
-                amount_trend_chart = base64.b64encode(buffer.getvalue()).decode('utf-8')
-                plt.close(fig)
-                charts.append(('amount_trend', amount_trend_chart))
-        except Exception as e:
-            print(f"Error creating amount trend chart: {e}")
-    
-    # Render the visualization template with the data source name
+    # Render the template FOURTH
     return render_template(
         'visualize.html',
         query=query,

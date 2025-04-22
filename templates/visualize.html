@@ -72,7 +72,7 @@
         
         <div class="visualizations">
             {% if charts %}
-                {% for chart_id, chart_data in charts %}
+            {% for chart_id, chart_data in charts.items() %}
                     <div class="chart-container">
                         <h3 class="chart-title">
                             {% if chart_id == 'filings_by_year' %}
