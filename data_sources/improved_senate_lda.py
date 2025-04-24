@@ -89,8 +89,21 @@ class ImprovedSenateLDADataSource(LobbyingDataSource):
         try:
             logger.info(f"Making API request to: {full_url} with params: {params}")
             response = self.session.get(full_url, params=params, timeout=30)
+            
+            # Log response status and first part of content for debugging
+            logger.info(f"Response status: {response.status_code}")
+            logger.info(f"Response preview: {response.text[:200]}...")
+            
             response.raise_for_status()
-            return response.json()
+            
+            # Try to parse JSON
+            try:
+                return response.json()
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON decode error: {e}")
+                logger.error(f"Response content: {response.text[:500]}...")
+                raise ValueError(f"Invalid JSON response from API: {e}")
+                
         except requests.exceptions.HTTPError as e:
             logger.error(f"HTTP error: {e}")
             if e.response.status_code == 401:
@@ -105,19 +118,17 @@ class ImprovedSenateLDADataSource(LobbyingDataSource):
         except requests.exceptions.Timeout:
             logger.error("Request timed out")
             raise ValueError("Request timed out. The API server might be slow or unresponsive.")
-        except json.JSONDecodeError:
-            logger.error(f"Invalid JSON response from API")
-            raise ValueError("The API returned an invalid response format.")
-        
+    
     def search_filings(self, query, filters=None, page=1, page_size=25):
         """
         Search for lobbying filings in the Senate LDA database.
+        Modified to retrieve ALL results for a query across multiple pages.
         
         Args:
             query: Search term (person or organization name)
             filters: Additional filters to apply to the search
-            page: Page number for pagination
-            page_size: Number of results per page
+            page: Page number for pagination (only used for final display)
+            page_size: Number of results per page (only used for final display)
             
         Returns:
             tuple: (results, count, pagination_info, error)
@@ -125,7 +136,7 @@ class ImprovedSenateLDADataSource(LobbyingDataSource):
         if filters is None:
             filters = {}
         
-        # Extract filters    
+        # Extract filters
         year_from = filters.get('year_from', '')
         year_to = filters.get('year_to', '')
         issue_area = filters.get('issue_area', '')
@@ -142,120 +153,77 @@ class ImprovedSenateLDADataSource(LobbyingDataSource):
         error_message = None
         
         try:
-            # Define search strategies based on query type
+            # Use the two methods that worked in testing
+            # For company searches, use client_name and registrant_name as these worked
             if is_person:
-                # For person searches, prioritize lobbyist_name endpoint
-                search_strategies = [
-                    {
-                        "endpoint": "filings/",
-                        "params": {"lobbyist_name": query, "page": page, "page_size": page_size}
-                    },
-                    {
-                        "endpoint": "lobbyists/",
-                        "params": {"name": query},
-                        "requires_second_request": True,
-                        "second_endpoint": "filings/",
-                        "second_params_key": "lobbyist"
-                    }
+                search_patterns = [
+                    "filings/?lobbyist_name={}",
                 ]
             else:
-                # For organization searches, try both client and registrant endpoints
-                search_strategies = [
-                    {
-                        "endpoint": "filings/",
-                        "params": {"client_name": query, "page": page, "page_size": page_size}
-                    },
-                    {
-                        "endpoint": "filings/",
-                        "params": {"registrant_name": query, "page": page, "page_size": page_size}
-                    },           
+                search_patterns = [
+                    "filings/?client_name={}",
+                    "filings/?registrant_name={}"
                 ]
             
-            # Add year filters if specified
-            for strategy in search_strategies:
-                if year_from:
-                    strategy["params"]["filing_year__gte"] = year_from
-                if year_to:
-                    strategy["params"]["filing_year__lte"] = year_to
-            
-            # Try each search strategy
-            for strategy in search_strategies:
+            # Try each search pattern
+            for pattern in search_patterns:
                 try:
-                    # Convert params to string for caching
-                    params_str = json.dumps(strategy["params"])
+                    # Start with page 1 and collect all results
+                    current_page = 1
+                    total_count = 0
+                    has_more = True
                     
-                    # Make the API request
-                    data = self._cached_request(strategy["endpoint"], params_str)
-                    
-                    # Handle different response formats
-                    if isinstance(data, dict) and "results" in data:
-                        # Standard results format
-                        count = data.get("count", 0)
-                        results_data = data.get("results", [])
-                        logger.info(f"Found {count} results with endpoint: {strategy['endpoint']}")
+                    while has_more:
+                        # Build URL with pagination
+                        pattern_with_query = pattern.format(encoded_query)
+                        url = f"{self.api_base_url}{pattern_with_query}&page={current_page}&page_size=100"
                         
-                        for filing in results_data:
-                            filing_data = self._process_filing(filing)
-                            if self._should_include_filing(filing_data, issue_area, agency, amount_min):
-                                all_results.append(filing_data)
-                    
-                    elif isinstance(data, list) and strategy.get("requires_second_request"):
-                        # Entity search results - need to fetch related filings
-                        entity_count = len(data)
-                        logger.info(f"Found {entity_count} entities with endpoint: {strategy['endpoint']}")
+                        # Add year filters if specified
+                        if year_from:
+                            url += f"&filing_year__gte={year_from}"
+                        if year_to:
+                            url += f"&filing_year__lte={year_to}"
                         
-                        # Limit to first 5 entities to avoid too many requests
-                        for entity in data[:5]:
-                            if isinstance(entity, dict) and "id" in entity:
-                                entity_id = entity.get("id")
-                                second_params = {
-                                    strategy["second_params_key"]: entity_id,
-                                    "page": 1,
-                                    "page_size": 10
-                                }
+                        logger.info(f"Fetching page {current_page} with: {url}")
+                        
+                        response = self.session.get(url, timeout=30)
+                        
+                        if response.status_code == 200:
+                            data = response.json()
+                            
+                            # Check if results are found
+                            if isinstance(data, dict) and "results" in data:
+                                results_data = data.get("results", [])
+                                total_count = data.get("count", 0)
+                                logger.info(f"Found {len(results_data)} results on page {current_page} (total count: {total_count})")
                                 
-                                if year_from:
-                                    second_params["filing_year__gte"] = year_from
-                                if year_to:
-                                    second_params["filing_year__lte"] = year_to
-                                
-                                second_params_str = json.dumps(second_params)
-                                
-                                try:
-                                    filings_data = self._cached_request(
-                                        strategy["second_endpoint"], 
-                                        second_params_str
-                                    )
+                                # Process each filing
+                                for filing in results_data:
+                                    filing_data = self._process_filing(filing)
                                     
-                                    if isinstance(filings_data, dict) and "results" in filings_data:
-                                        filing_count = filings_data.get("count", 0)
-                                        logger.info(f"Found {filing_count} filings for entity ID: {entity_id}")
-                                        
-                                        for filing in filings_data.get("results", []):
-                                            filing_data = self._process_filing(filing)
-                                            if self._should_include_filing(filing_data, issue_area, agency, amount_min):
-                                                all_results.append(filing_data)
-                                except Exception as e:
-                                    logger.warning(f"Error fetching filings for entity {entity_id}: {str(e)}")
+                                    # Apply additional filters
+                                    if self._should_include_filing(filing_data, issue_area, agency, amount_min):
+                                        all_results.append(filing_data)
+                                
+                                # Check if there are more pages
+                                if len(results_data) > 0 and current_page * 100 < total_count:
+                                    current_page += 1
+                                else:
+                                    has_more = False
+                            else:
+                                has_more = False
+                        else:
+                            logger.warning(f"Pattern {pattern_with_query} failed with status {response.status_code}: {response.text[:100]}")
+                            has_more = False
                     
-                    elif isinstance(data, list):
-                        # Direct list of results
-                        logger.info(f"Found {len(data)} results (list format) with endpoint: {strategy['endpoint']}")
+                    # If we found a substantial number of results, stop trying other patterns
+                    if len(all_results) > 100:
+                        break
                         
-                        for filing in data:
-                            filing_data = self._process_filing(filing)
-                            if self._should_include_filing(filing_data, issue_area, agency, amount_min):
-                                all_results.append(filing_data)
-                
-                except ValueError as e:
-                    # Log the error but continue with other strategies
-                    logger.warning(f"Error with strategy {strategy['endpoint']}: {str(e)}")
-                    if not error_message:
-                        error_message = str(e)
                 except Exception as e:
-                    logger.error(f"Unexpected error with strategy {strategy['endpoint']}: {str(e)}")
+                    logger.error(f"Error with pattern {pattern}: {str(e)}")
                     if not error_message:
-                        error_message = f"Error searching filings: {str(e)}"
+                        error_message = f"Error with pattern {pattern}: {str(e)}"
             
             # Remove duplicate results
             unique_results = []
@@ -270,13 +238,16 @@ class ImprovedSenateLDADataSource(LobbyingDataSource):
             logger.info(f"Total unique results: {len(unique_results)}")
             
             # Sort results by filing date (most recent first)
-            unique_results.sort(key=lambda x: self._get_filing_date_for_sorting(x), reverse=True)
+            try:
+                unique_results.sort(key=lambda x: self._get_filing_date_for_sorting(x), reverse=True)
+            except Exception as e:
+                logger.error(f"Error sorting results: {str(e)}")
             
-            # Calculate pagination details
+            # Calculate pagination details for display only
             total_results = len(unique_results)
             total_pages = (total_results + page_size - 1) // page_size if total_results > 0 else 1
             
-            # Slice results for the current page
+            # Slice results for the requested page
             start_idx = (page - 1) * page_size
             end_idx = min(start_idx + page_size, total_results)
             
@@ -291,13 +262,12 @@ class ImprovedSenateLDADataSource(LobbyingDataSource):
                 "page_range": list(range(max(1, page - 2), min(total_pages + 1, page + 3)))
             }
             
-            # Return results with any error messages
             return page_results, total_results, pagination, error_message
             
         except Exception as e:
             logger.error(f"Unexpected error in search_filings: {str(e)}")
-            return [], 0, {"total_pages": 0}, f"An unexpected error occurred: {str(e)}"
-    
+            return [], 0, {"total_pages": 0}, f"An unexpected error occurred: {str(e)}"    
+        
     def _get_filing_date_for_sorting(self, filing):
         """Helper to get a date for sorting purposes"""
         try:
@@ -344,9 +314,6 @@ class ImprovedSenateLDADataSource(LobbyingDataSource):
     
     def _process_filing(self, filing):
         """Process a filing object from the API into a standardized format."""
-        # Get filing ID
-        filing_id = filing.get("id", filing.get("filing_uuid", ""))
-        
         # Handle empty filings
         if not filing:
             return {
@@ -359,6 +326,12 @@ class ImprovedSenateLDADataSource(LobbyingDataSource):
                 "agencies": [],
                 "amount": None
             }
+            
+        # Log the original filing data for debugging
+        logger.debug(f"Processing filing: {json.dumps(filing, indent=2)[:500]}...")
+        
+        # Get filing ID
+        filing_id = filing.get("id", filing.get("filing_uuid", ""))
         
         # Extract date
         filing_date = "Unknown"
@@ -460,7 +433,7 @@ class ImprovedSenateLDADataSource(LobbyingDataSource):
                         break
                     else:
                         # Try to convert string to number
-                        clean_amount = str(filing[amount_field]).replace(',', '')
+                        clean_amount = str(filing[amount_field]).replace(',', '').replace('$', '')
                         if clean_amount.strip():
                             amount = float(clean_amount)
                             break
@@ -482,6 +455,7 @@ class ImprovedSenateLDADataSource(LobbyingDataSource):
             "source": "Senate LDA"
         }
         
+        logger.debug(f"Processed filing: {json.dumps(filing_data, indent=2)}")
         return filing_data
     
     def get_filing_detail(self, filing_id):
@@ -498,9 +472,6 @@ class ImprovedSenateLDADataSource(LobbyingDataSource):
             logger.info(f"Getting filing detail for ID: {filing_id}")
             
             # Try direct filing detail endpoint
-            params = {"id": filing_id}
-            params_str = json.dumps(params)
-            
             try:
                 # First try the direct filing endpoint
                 filing = self._cached_request(f"filings/{filing_id}/", "")
@@ -510,6 +481,9 @@ class ImprovedSenateLDADataSource(LobbyingDataSource):
                 logger.warning(f"Direct filing endpoint failed: {str(e)}, trying search endpoint")
                 
                 # Try search endpoint as fallback
+                params = {"id": filing_id}
+                params_str = json.dumps(params)
+                
                 try:
                     filings_data = self._cached_request("filings/", params_str)
                     
@@ -518,7 +492,17 @@ class ImprovedSenateLDADataSource(LobbyingDataSource):
                         processed_filing = self._process_filing_detail(filing)
                         return processed_filing, None
                     else:
-                        return None, "Filing not found"
+                        # Try one more approach - use the ID as a search term
+                        search_params = {"search": filing_id}
+                        search_params_str = json.dumps(search_params)
+                        search_results = self._cached_request("filings/", search_params_str)
+                        
+                        if isinstance(search_results, dict) and "results" in search_results and search_results["results"]:
+                            filing = search_results["results"][0]
+                            processed_filing = self._process_filing_detail(filing)
+                            return processed_filing, None
+                        else:
+                            return None, "Filing not found"
                 except Exception as e2:
                     logger.error(f"Filing search endpoint failed: {str(e2)}")
                     return None, f"Could not retrieve filing: {str(e2)}"
