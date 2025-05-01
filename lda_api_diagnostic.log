@@ -1,0 +1,34 @@
+2025-04-25 20:23:42,263 - lda_api_diagnostic - INFO - Testing all search methods for: 'Microsoft'
+2025-04-25 20:23:42,264 - lda_api_diagnostic - INFO - Testing method: General Search - URL: https://lda.senate.gov/api/v1/filings/?search=Microsoft&page=1&page_size=25
+2025-04-25 20:23:42,502 - lda_api_diagnostic - INFO - Response status: 400, Time: 0.24s
+2025-04-25 20:23:42,502 - lda_api_diagnostic - WARNING - Request failed: 400 - {"detail":"You must pass at least one query string parameter to filter the results and be able to pa
+2025-04-25 20:23:42,502 - lda_api_diagnostic - INFO - Testing method: Client Name - URL: https://lda.senate.gov/api/v1/filings/?client_name=Microsoft&page=1&page_size=25
+2025-04-25 20:23:43,684 - lda_api_diagnostic - INFO - Response status: 200, Time: 1.18s
+2025-04-25 20:23:43,688 - lda_api_diagnostic - INFO - Found 2170 results with method: Client Name
+2025-04-25 20:23:43,688 - lda_api_diagnostic - INFO - Testing method: Registrant Name - URL: https://lda.senate.gov/api/v1/filings/?registrant_name=Microsoft&page=1&page_size=25
+2025-04-25 20:23:46,078 - lda_api_diagnostic - INFO - Response status: 200, Time: 2.39s
+2025-04-25 20:23:46,090 - lda_api_diagnostic - INFO - Found 96 results with method: Registrant Name
+2025-04-25 20:23:46,090 - lda_api_diagnostic - INFO - Testing method: Client Entity - URL: https://lda.senate.gov/api/v1/clients/search/?name=Microsoft
+2025-04-25 20:23:46,549 - lda_api_diagnostic - INFO - Response status: 404, Time: 0.46s
+2025-04-25 20:23:46,550 - lda_api_diagnostic - WARNING - Request failed: 404 - {"detail":"Not found."}
+2025-04-25 20:23:46,550 - lda_api_diagnostic - INFO - Testing method: Registrant Entity - URL: https://lda.senate.gov/api/v1/registrants/search/?name=Microsoft
+2025-04-25 20:23:46,961 - lda_api_diagnostic - INFO - Response status: 404, Time: 0.41s
+2025-04-25 20:23:46,961 - lda_api_diagnostic - WARNING - Request failed: 404 - {"detail":"Not found."}
+2025-04-25 20:23:46,961 - lda_api_diagnostic - INFO - Testing method: Lobbyist Name - URL: https://lda.senate.gov/api/v1/filings/?lobbyist_name=Microsoft&page=1&page_size=25
+2025-04-25 20:23:47,470 - lda_api_diagnostic - INFO - Response status: 200, Time: 0.51s
+2025-04-25 20:23:47,473 - lda_api_diagnostic - INFO - Found 0 results with method: Lobbyist Name
+2025-04-25 20:23:47,473 - lda_api_diagnostic - INFO - Testing method: Lobbyist Entity - URL: https://lda.senate.gov/api/v1/lobbyists/?name=Microsoft
+2025-04-25 20:23:47,767 - lda_api_diagnostic - INFO - Response status: 200, Time: 0.29s
+2025-04-25 20:23:47,768 - lda_api_diagnostic - INFO - Found 85180 results with method: Lobbyist Entity
+2025-04-25 20:23:47,768 - lda_api_diagnostic - INFO - Testing method: Filing Year 2023 - URL: https://lda.senate.gov/api/v1/filings/?search=Microsoft&filing_year=2023&page=1&page_size=25
+2025-04-25 20:23:48,906 - lda_api_diagnostic - INFO - Response status: 200, Time: 1.14s
+2025-04-25 20:23:48,907 - lda_api_diagnostic - INFO - Found 95118 results with method: Filing Year 2023
+2025-04-25 20:23:48,907 - lda_api_diagnostic - INFO - Testing method: Filing Year 2022 - URL: https://lda.senate.gov/api/v1/filings/?search=Microsoft&filing_year=2022&page=1&page_size=25
+2025-04-25 20:23:49,932 - lda_api_diagnostic - INFO - Response status: 200, Time: 1.02s
+2025-04-25 20:23:49,933 - lda_api_diagnostic - INFO - Found 93425 results with method: Filing Year 2022
+2025-04-25 20:23:49,933 - lda_api_diagnostic - INFO - Testing method: Filing Year 2023 (Client) - URL: https://lda.senate.gov/api/v1/filings/?client_name=Microsoft&filing_year=2023&page=1&page_size=25
+2025-04-25 20:23:51,262 - lda_api_diagnostic - INFO - Response status: 200, Time: 1.33s
+2025-04-25 20:23:51,266 - lda_api_diagnostic - INFO - Found 87 results with method: Filing Year 2023 (Client)
+2025-04-25 20:23:51,266 - lda_api_diagnostic - INFO - Testing method: Filing Year 2023 (Registrant) - URL: https://lda.senate.gov/api/v1/filings/?registrant_name=Microsoft&filing_year=2023&page=1&page_size=25
+2025-04-25 20:23:52,593 - lda_api_diagnostic - INFO - Response status: 200, Time: 1.33s
+2025-04-25 20:23:52,595 - lda_api_diagnostic - INFO - Found 5 results with method: Filing Year 2023 (Registrant)
