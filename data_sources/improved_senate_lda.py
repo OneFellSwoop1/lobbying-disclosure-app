@@ -12,6 +12,7 @@ import logging
 import time
 import urllib.parse
 from datetime import datetime, timedelta
+from collections import defaultdict
 from requests.packages.urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 import traceback
