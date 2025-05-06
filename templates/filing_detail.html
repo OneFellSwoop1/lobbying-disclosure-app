@@ -1,402 +1,533 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lobbying Filing Detail - {{ filing.client.name }}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
-    <style>
-        body {
-            padding-top: 2rem;
-            background-color: #f8f9fa;
-        }
-        .detail-container {
-            background-color: white;
-            border-radius: 10px;
-            padding: 2rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 2rem;
-        }
-        .section-heading {
-            border-bottom: 2px solid #007bff;
-            padding-bottom: 0.5rem;
-            margin-bottom: 1.5rem;
-            margin-top: 2rem;
-        }
-        .info-card {
-            background-color: #f8f9fa;
-            border-left: 4px solid #6c757d;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            border-radius: 0.25rem;
-        }
-        .filing-header {
-            background-color: #e9ecef;
-            padding: 1.5rem;
-            border-radius: 10px;
-            margin-bottom: 2rem;
-            position: relative;
-        }
-        .badge-custom {
-            font-size: 85%;
-        }
-        .data-label {
-            font-weight: 600;
-            margin-bottom: 0.25rem;
-            color: #495057;
-        }
-        .data-value {
-            margin-bottom: 1rem;
-        }
-        .detail-block {
-            margin-bottom: 1.5rem;
-            padding: 1.25rem;
-            background-color: #f8f9fa;
-            border-radius: 0.5rem;
-        }
-        .filing-meta {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-            margin-top: 1rem;
-        }
-        .meta-item {
-            padding: 0.4rem 0.75rem;
-            border-radius: 50px;
-            font-size: 0.85rem;
-            background-color: #e2e3e5;
-            display: flex;
-            align-items: center;
-        }
-        .meta-item i {
-            margin-right: 0.5rem;
-        }
-        .client-info, .registrant-info {
-            padding: 1.5rem;
-            border-radius: 0.5rem;
-            margin-bottom: 1.5rem;
-        }
-        .client-info {
-            background-color: #e7f5ff;
-            border-left: 5px solid #339af0;
-        }
-        .registrant-info {
-            background-color: #fff9db;
-            border-left: 5px solid #fcc419;
-        }
-        .filing-type-badge {
-            position: absolute;
-            top: -15px;
-            left: 2rem;
-            background: #007bff;
-            color: white;
-            padding: 0.25rem 1rem;
-            border-radius: 50px;
-            font-weight: 600;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-        .document-id {
-            position: absolute;
-            top: 1rem;
-            right: 1.5rem;
-            font-size: 0.85rem;
-            color: #6c757d;
-        }
-        .lobbyist-card {
-            border: 1px solid rgba(0,0,0,0.1);
-            border-radius: 0.5rem;
-            height: 100%;
-            transition: transform 0.2s;
-        }
-        .lobbyist-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        .agency-badge {
-            background-color: #d0ebff;
-            color: #1971c2;
-            border: none;
-            margin-bottom: 0.5rem;
-            padding: 0.5rem 0.75rem;
-            font-weight: normal;
-        }
-        .issue-card {
-            padding: 1.25rem;
-            border-radius: 0.5rem;
-            background-color: #f8f9fa;
-            margin-bottom: 1.5rem;
-            border-left: 4px solid #20c997;
-        }
-        .activity-list {
-            margin-top: 1.5rem;
-        }
-        .activity-item {
-            padding: 1rem;
-            border: 1px solid rgba(0,0,0,0.1);
-            border-radius: 0.5rem;
-            margin-bottom: 1rem;
-            transition: background-color 0.2s;
-        }
-        .activity-item:hover {
-            background-color: #f8f9fa;
-        }
-        .no-data {
-            font-style: italic;
-            color: #6c757d;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1><i class="bi bi-file-earmark-text"></i> Lobbying Filing Detail</h1>
-            <div>
-                <button onclick="window.history.back()" class="btn btn-outline-secondary me-2">
-                    <i class="bi bi-arrow-left"></i> Back to Results
-                </button>
-                <a href="{{ url_for('index') }}" class="btn btn-outline-primary">
-                    <i class="bi bi-search"></i> New Search
-                </a>
-            </div>
-        </div>
-        
-        <div class="filing-header">
-            <!-- Filing type badge -->
-            {% if filing.filing_type %}
-            <div class="filing-type-badge">
-                {{ filing.filing_type }}
-            </div>
-            {% endif %}
-            
-            <!-- Document ID -->
-            <div class="document-id">
-                <i class="bi bi-upc"></i> ID: {{ filing.id }}
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row my-4">
+        <div class="col-md-12">
+            <!-- Header with navigation buttons -->
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+                <h2 class="neon-text mb-3 mb-md-0">Filing Details</h2>
+                <div class="action-buttons">
+                    <a href="javascript:history.back()" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-arrow-left"></i> Back to Results
+                    </a>
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-search"></i> New Search
+                    </a>
+                    {% if filing.document_url %}
+                    <a href="{{ filing.document_url }}" target="_blank" class="btn btn-primary">
+                        <i class="bi bi-file-pdf"></i> View Official Document
+                    </a>
+                    {% endif %}
+                </div>
             </div>
             
-            <div class="row">
-                <div class="col-md-8">
-                    <h2>{{ filing.client.name }}</h2>
-                    <p class="lead mb-0">
-                        <i class="bi bi-building"></i> {{ filing.registrant.name }}
-                    </p>
-                    
-                    <div class="filing-meta">
-                        {% if filing.received_date and filing.received_date != "Unknown" %}
-                        <div class="meta-item">
-                            <i class="bi bi-calendar-check"></i> Filed: {{ filing.received_date }}
+            <!-- Filing Header Card with Enhanced Styling -->
+            <div class="card mb-4 filing-header-card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap">
+                        <div class="filing-id-section">
+                            <h3 class="mb-1 neon-text">Filing #{{ filing.id|e }}</h3>
+                            <span class="filing-uuid text-muted small">UUID: {{ filing.filing_uuid|e }}</span>
                         </div>
-                        {% endif %}
-                        
-                        {% if filing.filing_year %}
-                        <div class="meta-item">
-                            <i class="bi bi-calendar3"></i> Year: {{ filing.filing_year }}
+                        <div class="filing-type-badges mt-2 mt-md-0">
+                            <span class="badge badge-primary">{{ filing.filing_type_display|e }}</span>
+                            <span class="badge badge-secondary">{{ filing.filing_year|e }}</span>
                         </div>
-                        {% endif %}
-                        
-                        {% if filing.period %}
-                        <div class="meta-item">
-                            <i class="bi bi-clock"></i> Period: {{ filing.period }}
-                        </div>
-                        {% endif %}
-                        
-                        {% if filing.income_amount or filing.expense_amount %}
-                        <div class="meta-item">
-                            <i class="bi bi-cash"></i> 
-                            {{ filing.income_amount|format_currency if filing.income_amount else filing.expense_amount|format_currency }}
-                        </div>
-                        {% endif %}
                     </div>
                 </div>
-                <div class="col-md-4 text-md-end">
-                    <!-- Any additional info could go here -->
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-7">
+                            <!-- Filing metadata with improved formatting -->
+                            <div class="filing-meta d-flex flex-wrap">
+                                <div class="meta-item me-4 mb-3">
+                                    <i class="bi bi-calendar3 me-2 text-primary"></i>
+                                    <strong class="label-text">Posted Date:</strong> 
+                                    <span class="filing-date">{{ filing.dt_posted|format_date if filing.dt_posted else 'Not Available' }}</span>
+                                </div>
+                                
+                                {% if filing.income or filing.expenses %}
+                                <div class="meta-item me-4 mb-3">
+                                    <i class="bi bi-currency-dollar me-2 text-primary"></i>
+                                    <strong class="label-text">Amount Reported:</strong> 
+                                    <span class="amount-value neon-text-orange">{{ filing.income|format_currency if filing.income else (filing.expenses|format_currency if filing.expenses else 'N/A') }}</span>
+                                </div>
+                                {% endif %}
+                                
+                                <div class="meta-item mb-3">
+                                    <i class="bi bi-clock-history me-2 text-primary"></i>
+                                    <strong class="label-text">Filing Period:</strong> 
+                                    <span class="period-value">{{ filing.period_display|e if filing.period_display else filing.filing_period|e }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-5">
+                            {% if filing.meta and filing.meta.is_mock %}
+                            <div class="alert alert-warning alert-with-icon mt-2 mt-md-0">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>Note:</strong> 
+                                This is generated demonstration data as the API did not return detailed results for this filing ID.
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
         
-        <div class="detail-container">
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="client-info">
-                        <h4 class="mb-3"><i class="bi bi-building"></i> Client Information</h4>
-                        
-                        <div class="data-label">Name</div>
-                        <div class="data-value">{{ filing.client.name }}</div>
-                        
-                        {% if filing.client.client_type %}
-                        <div class="data-label">Client Type</div>
-                        <div class="data-value">{{ filing.client.client_type }}</div>
-                        {% endif %}
-                        
-                        {% if filing.client.country or filing.client.state %}
-                        <div class="data-label">Location</div>
-                        <div class="data-value">
-                            {% if filing.client.country and filing.client.country != "Not specified" %}
-                                {{ filing.client.country }}
-                                {% if filing.client.state and filing.client.state != "Not specified" %}
-                                    , {{ filing.client.state }}
-                                {% endif %}
-                            {% elif filing.client.state and filing.client.state != "Not specified" %}
-                                {{ filing.client.state }}
-                            {% else %}
-                                Not specified
-                            {% endif %}
+        <div class="col-md-12">
+            <div class="row mb-4">
+                <!-- Client Information Card -->
+                <div class="col-md-6 mb-4 mb-md-0">
+                    <div class="card h-100 client-card">
+                        <div class="card-header">
+                            <h4><i class="bi bi-building me-2 text-primary"></i>Client Information</h4>
                         </div>
-                        {% endif %}
-                        
-                        {% if filing.client.description and filing.client.description != "None" and filing.client.description != "Not provided" %}
-                        <div class="data-label">Description</div>
-                        <div class="data-value">{{ filing.client.description }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-                
-                <div class="col-md-6">
-                    <div class="registrant-info">
-                        <h4 class="mb-3"><i class="bi bi-briefcase"></i> Registrant Information</h4>
-                        
-                        <div class="data-label">Name</div>
-                        <div class="data-value">{{ filing.registrant.name }}</div>
-                        
-                        {% if filing.registrant.description and filing.registrant.description != "None" and filing.registrant.description != "Not provided" %}
-                        <div class="data-label">Description</div>
-                        <div class="data-value">{{ filing.registrant.description }}</div>
-                        {% endif %}
-                        
-                        {% if filing.registrant.country or filing.registrant.state %}
-                        <div class="data-label">Location</div>
-                        <div class="data-value">
-                            {% if filing.registrant.country and filing.registrant.country != "Not specified" %}
-                                {{ filing.registrant.country }}
-                                {% if filing.registrant.state and filing.registrant.state != "Not specified" %}
-                                    , {{ filing.registrant.state }}
-                                {% endif %}
-                            {% elif filing.registrant.state and filing.registrant.state != "Not specified" %}
-                                {{ filing.registrant.state }}
-                            {% else %}
-                                Not specified
+                        <div class="card-body">
+                            <p class="fs-5 fw-bold mb-1 entity-name neon-text">{{ filing.client.name|e if filing.client and filing.client.name else 'N/A' }}</p>
+                            <p class="activity-description mb-3">{{ filing.client.description|e if filing.client and filing.client.description else 'No description available' }}</p>
+                            
+                            {% if filing.client and filing.client.address %}
+                            <p class="mb-3"><strong class="client-label">Address:</strong> {{ filing.client.address|e }}</p>
                             {% endif %}
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-            
-            <h4 class="section-heading"><i class="bi bi-people"></i> Lobbyists</h4>
-            {% if filing.lobbyists and filing.lobbyists|length > 0 %}
-                <div class="row">
-                    {% for lobbyist in filing.lobbyists %}
-                    <div class="col-lg-4 col-md-6 mb-3">
-                        <div class="lobbyist-card">
-                            <div class="card-body">
-                                <h5 class="card-title">
-                                    <i class="bi bi-person"></i> {{ lobbyist }}
-                                </h5>
+                            
+                            <div class="mt-3">
+                                <a href="{{ url_for('show_results', query=filing.client.name, page=1) }}" class="btn btn-sm btn-outline-secondary client-search-btn">
+                                    <i class="bi bi-search me-1"></i> Find All Client Filings
+                                </a>
                             </div>
                         </div>
                     </div>
-                    {% endfor %}
                 </div>
-            {% else %}
-                <p class="no-data">No lobbyists listed for this filing.</p>
-            {% endif %}
-            
-            <h4 class="section-heading"><i class="bi bi-bank"></i> Government Entities</h4>
-            {% if filing.covered_agencies and filing.covered_agencies|length > 0 %}
-                <div class="mb-4">
-                    {% for agency in filing.covered_agencies %}
-                        <span class="badge agency-badge">{{ agency }}</span>
-                    {% endfor %}
-                </div>
-            {% else %}
-                <p class="no-data">No specific government entities listed.</p>
-            {% endif %}
-            
-            <h4 class="section-heading"><i class="bi bi-chat-left-text"></i> Lobbying Issues</h4>
-            <div class="issue-card">
-                <h5 class="mb-3">Specific Issues</h5>
-                {% if filing.specific_issues and filing.specific_issues != "No specific issues listed." %}
-                    <p>{{ filing.specific_issues }}</p>
-                {% else %}
-                    <p class="no-data">No specific issues provided.</p>
-                {% endif %}
                 
-                {% if filing.lobbying_activities and filing.lobbying_activities|length > 0 %}
-                <h5 class="mt-4 mb-3">Lobbying Activities</h5>
-                <div class="activity-list">
-                    {% for activity in filing.lobbying_activities %}
-                    <div class="activity-item">
-                        {% if activity.general_issue_area %}
-                        <div class="data-label">Issue Area</div>
-                        <div class="data-value">{{ activity.general_issue_area }}</div>
-                        {% endif %}
-                        
-                        {% if activity.specific_issues %}
-                        <div class="data-label">Details</div>
-                        <div class="data-value mb-0">{{ activity.specific_issues }}</div>
-                        {% endif %}
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endif %}
-            </div>
-            
-            <h4 class="section-heading"><i class="bi bi-info-circle"></i> Additional Information</h4>
-            <div class="row">
+                <!-- Registrant Information Card -->
                 <div class="col-md-6">
-                    <div class="detail-block">
-                        {% if filing.filing_type %}
-                        <div class="data-label">Filing Type</div>
-                        <div class="data-value">{{ filing.filing_type }}</div>
-                        {% endif %}
-                        
-                        {% if filing.filing_year %}
-                        <div class="data-label">Filing Year</div>
-                        <div class="data-value">{{ filing.filing_year }}</div>
-                        {% endif %}
-                        
-                        {% if filing.period %}
-                        <div class="data-label">Period</div>
-                        <div class="data-value">{{ filing.period }}</div>
-                        {% endif %}
-                        
-                        <div class="data-label">Amount</div>
-                        <div class="data-value mb-0">
-                            {{ filing.income_amount|format_currency if filing.income_amount else filing.expense_amount|format_currency }}
+                    <div class="card h-100 registrant-card">
+                        <div class="card-header">
+                            <h4><i class="bi bi-person-badge me-2 text-primary"></i>Registrant Information</h4>
+                        </div>
+                        <div class="card-body">
+                            <p class="fs-5 fw-bold mb-1 entity-name neon-text-orange">{{ filing.registrant.name|e if filing.registrant and filing.registrant.name else 'N/A' }}</p>
+                            <p class="activity-description mb-3">{{ filing.registrant.description|e if filing.registrant and filing.registrant.description else 'No description available' }}</p>
+                            
+                            {% if filing.registrant and filing.registrant.contact %}
+                            <p class="mb-3"><strong class="registrant-label">Contact:</strong> {{ filing.registrant.contact|e }}</p>
+                            {% endif %}
+                            
+                            <div class="mt-3">
+                                <a href="{{ url_for('show_results', query=filing.registrant.name, page=1) }}" class="btn btn-sm btn-outline-secondary registrant-search-btn">
+                                    <i class="bi bi-search me-1"></i> Find All Registrant Filings
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6">
-                    <div class="detail-block">
-                        {% if filing.received_date %}
-                        <div class="data-label">Received Date</div>
-                        <div class="data-value">{{ filing.received_date }}</div>
-                        {% endif %}
-                        
-                        {% if filing.effective_date %}
-                        <div class="data-label">Effective Date</div>
-                        <div class="data-value">{{ filing.effective_date }}</div>
-                        {% endif %}
-                        
-                        {% if filing.termination_date %}
-                        <div class="data-label">Termination Date</div>
-                        <div class="data-value">{{ filing.termination_date }}</div>
-                        {% endif %}
-                        
-                        <div class="data-label">Filing ID</div>
-                        <div class="data-value mb-0">{{ filing.id }}</div>
+            </div>
+            
+            <!-- Lobbying Activities Card with Enhanced Display -->
+            <div class="card mb-4 activities-card">
+                <div class="card-header">
+                    <h4><i class="bi bi-list-check me-2 text-primary"></i>Lobbying Activities</h4>
+                </div>
+                <div class="card-body">
+                    {% if filing.lobbying_activities and filing.lobbying_activities|length > 0 %}
+                        <div class="activities-container">
+                            {% for activity in filing.lobbying_activities %}
+                                <div class="activity-item mb-4 pb-3">
+                                    <div class="activity-header d-flex align-items-center mb-3">
+                                        <div class="activity-marker"></div>
+                                        {% if activity.general_issue_code_display %}
+                                        <span class="badge badge-primary ms-2">{{ activity.general_issue_code_display|e }}</span>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <div class="activity-content ps-4">
+                                        <p class="activity-description mb-4">{{ activity.description|e if activity.description else 'No description provided' }}</p>
+                                        
+                                        <div class="activity-details">
+                                            {% if activity.government_entities and activity.government_entities|length > 0 %}
+                                            <div class="mb-4 entities-section">
+                                                <h6 class="neon-text-orange mb-2"><i class="bi bi-building me-2"></i>Government Entities:</h6>
+                                                <div class="entities-list">
+                                                    {% for entity in activity.government_entities %}
+                                                        <span class="badge badge-secondary me-1 mb-1 entity-badge">{{ entity.name|e }}</span>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                            
+                                            {% if activity.lobbyists and activity.lobbyists|length > 0 %}
+                                            <div class="lobbyist-section">
+                                                <h6 class="neon-text-white mb-3"><i class="bi bi-people me-2"></i>Lobbyists:</h6>
+                                                <div class="row">
+                                                    {% for lobbyist_entry in activity.lobbyists %}
+                                                        {% if lobbyist_entry.lobbyist %}
+                                                        <div class="col-md-6 mb-3">
+                                                            <div class="lobbyist-item">
+                                                                <div class="d-flex align-items-center">
+                                                                    <div class="lobbyist-avatar me-2">
+                                                                        <i class="bi bi-person"></i>
+                                                                    </div>
+                                                                    <div class="lobbyist-info">
+                                                                        <span class="lobbyist-name">
+                                                                            {{ lobbyist_entry.lobbyist.first_name|e if lobbyist_entry.lobbyist.first_name else '' }} 
+                                                                            {{ lobbyist_entry.lobbyist.middle_name|e if lobbyist_entry.lobbyist.middle_name else '' }} 
+                                                                            {{ lobbyist_entry.lobbyist.last_name|e if lobbyist_entry.lobbyist.last_name else '' }}
+                                                                        </span>
+                                                                        {% if lobbyist_entry.covered_position and lobbyist_entry.covered_position != 'N/A' %}
+                                                                        <small class="d-block text-muted position-text">{{ lobbyist_entry.covered_position|e }}</small>
+                                                                        {% endif %}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning alert-with-icon">
+                            <i class="bi bi-exclamation-triangle me-2 alert-icon"></i>
+                            No detailed lobbying activities available for this filing.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Related Documents/Data -->
+            <div class="card mb-4 related-card">
+                <div class="card-header">
+                    <h4><i class="bi bi-link-45deg me-2 text-primary"></i>Related Resources</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-4 mb-md-0">
+                            <h5 class="neon-text mb-3">Documents</h5>
+                            <ul class="list-group resource-list mb-3">
+                                {% if filing.document_url %}
+                                <li class="list-group-item document-item">
+                                    <a href="{{ filing.document_url }}" target="_blank" class="document-link">
+                                        <i class="bi bi-file-pdf me-2 text-primary"></i>Official Filing Document
+                                    </a>
+                                </li>
+                                {% else %}
+                                <li class="list-group-item text-muted">
+                                    <i class="bi bi-info-circle me-2"></i>No documents available
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h5 class="neon-text-orange mb-3">Actions</h5>
+                            <div class="list-group action-list">
+                                <a href="javascript:history.back()" class="list-group-item list-group-item-action action-item">
+                                    <i class="bi bi-arrow-left me-2 text-primary"></i>Back to Search Results
+                                </a>
+                                <a href="{{ url_for('index') }}" class="list-group-item list-group-item-action action-item">
+                                    <i class="bi bi-search me-2 text-primary"></i>New Search
+                                </a>
+                                {% if filing.client and filing.client.name %}
+                                <a href="{{ url_for('show_results', query=filing.client.name, page=1) }}" class="list-group-item list-group-item-action action-item">
+                                    <i class="bi bi-building me-2 text-primary"></i>Find More Filings for {{ filing.client.name|truncate(30) }}
+                                </a>
+                                {% endif %}
+                                {% if filing.registrant and filing.registrant.name %}
+                                <a href="{{ url_for('show_results', query=filing.registrant.name, page=1) }}" class="list-group-item list-group-item-action action-item">
+                                    <i class="bi bi-person-badge me-2 text-primary"></i>Find More Filings by {{ filing.registrant.name|truncate(30) }}
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        
-        <div class="text-center mb-4">
-            <button onclick="window.history.back()" class="btn btn-primary">
-                <i class="bi bi-arrow-left"></i> Back to Results
-            </button>
-        </div>
     </div>
+</div>
+        
+<style>
+    /* Additional styles for filing detail page */
+    .filing-header-card {
+        background: linear-gradient(135deg, var(--dark-card), rgba(0, 149, 232, 0.03));
+        transition: all 0.3s ease;
+    }
+    
+    .filing-header-card:hover {
+        box-shadow: 0 0 20px rgba(0, 149, 232, 0.1);
+    }
+    
+    .filing-uuid {
+        font-family: 'Roboto Mono', monospace;
+        font-size: 0.75rem;
+    }
+    
+    .client-card, .registrant-card {
+        transition: all 0.3s ease;
+    }
+    
+    .client-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0 15px rgba(0, 149, 232, 0.1);
+    }
+    
+    .registrant-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0 15px rgba(255, 112, 0, 0.1);
+    }
+    
+    .activities-card {
+        border-left: 3px solid var(--brand-primary);
+    }
+    
+    .activities-container {
+        position: relative;
+        padding-left: 1rem;
+    }
+    
+    .activities-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 10px;
+        width: 2px;
+        background: linear-gradient(to bottom, 
+            var(--brand-primary), 
+            var(--brand-primary-dark),
+            var(--brand-secondary-dark)
+        );
+        opacity: 0.3;
+    }
+    
+    .activity-marker {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--brand-primary);
+        box-shadow: 0 0 8px var(--brand-primary-glow);
+        position: relative;
+        z-index: 2;
+    }
+    
+    .activity-item {
+        position: relative;
+        transition: all 0.3s ease;
+    }
+    
+    .activity-item:hover {
+        transform: translateX(5px);
+    }
+    
+    .activity-item:not(:last-child) {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .activity-description {
+        line-height: 1.6;
+        color: var(--text-light);
+        font-size: 0.95rem;
+    }
+    
+    .lobbyist-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: rgba(0, 149, 232, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--brand-primary-light);
+    }
+    
+    .lobbyist-item {
+        transition: all 0.3s ease;
+        padding: 10px;
+        border-radius: 8px;
+        background: rgba(18, 18, 30, 0.4);
+        border: 1px solid rgba(0, 149, 232, 0.05);
+    }
+    
+    .lobbyist-item:hover {
+        background-color: rgba(0, 149, 232, 0.05);
+        transform: translateX(5px);
+    }
+    
+    .lobbyist-name {
+        font-weight: 500;
+        display: block;
+    }
+    
+    .position-text {
+        font-size: 0.8rem;
+        line-height: 1.4;
+    }
+    
+    .entity-badge {
+        transition: all 0.3s ease;
+        position: relative;
+        z-index: 2;
+        font-size: 0.8rem;
+    }
+    
+    .entity-badge:hover {
+        transform: scale(1.1);
+        box-shadow: 0 0 5px rgba(255, 112, 0, 0.2);
+    }
+    
+    .document-item, .action-item {
+        background-color: rgba(18, 18, 30, 0.4);
+        border-color: var(--dark-border);
+        transition: all 0.3s ease;
+    }
+    
+    .document-item:hover, .action-item:hover {
+        background-color: var(--dark-hover);
+        transform: translateX(5px);
+    }
+    
+    .document-link {
+        display: block;
+    }
+    
+    .label-text {
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+    
+    .filing-meta {
+        color: var(--text-light);
+    }
+    
+    .meta-item {
+        display: flex;
+        align-items: center;
+    }
+    
+    .alert-with-icon {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        background-color: rgba(255, 112, 0, 0.03);
+        border-left: 3px solid var(--brand-secondary);
+    }
+    
+    .alert-icon {
+        font-size: 1.5rem;
+        color: var(--brand-secondary);
+        margin-right: 1rem;
+    }
+    
+    .client-search-btn, .registrant-search-btn {
+        transition: all 0.3s ease;
+    }
+    
+    .client-search-btn:hover {
+        background-color: var(--brand-primary);
+        color: var(--text-white);
+        border-color: var(--brand-primary);
+    }
+    
+    .registrant-search-btn:hover {
+        background-color: var(--brand-secondary);
+        color: var(--text-white);
+        border-color: var(--brand-secondary);
+    }
+    
+    .related-card {
+        border-left: 3px solid var(--brand-secondary);
+    }
+    
+    @media (max-width: 768px) {
+        .action-buttons {
+            margin-top: 15px;
+            width: 100%;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .action-buttons .btn {
+            flex: 1;
+            min-width: 120px;
+        }
+    }
+</style>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Animated entrance for elements
+        const animateElements = (selector, delay = 100, duration = 500) => {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach((element, index) => {
+                element.style.opacity = '0';
+                element.style.transform = 'translateY(20px)';
+                
+                setTimeout(() => {
+                    element.style.transition = `all ${duration}ms ease`;
+                    element.style.opacity = '1';
+                    element.style.transform = 'translateY(0)';
+                }, index * delay + 100);
+            });
+        };
+        
+        // Animate cards with staggered timing
+        animateElements('.card', 150);
+        
+        // Animate activities
+        animateElements('.activity-item', 100);
+        
+        // Animate lobbyists
+        animateElements('.lobbyist-item', 50);
+        
+        // Add hover effects to action buttons
+        const actionItems = document.querySelectorAll('.action-item');
+        actionItems.forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                const icon = this.querySelector('i');
+                icon.classList.add('neon-text');
+            });
+            
+            item.addEventListener('mouseleave', function() {
+                const icon = this.querySelector('i');
+                icon.classList.remove('neon-text');
+            });
+        });
+        
+        // Add pulsing effect to the activity markers
+        const pulseMarkers = () => {
+            const markers = document.querySelectorAll('.activity-marker');
+            markers.forEach((marker, index) => {
+                setTimeout(() => {
+                    marker.style.boxShadow = '0 0 15px var(--brand-primary-glow)';
+                    setTimeout(() => {
+                        marker.style.boxShadow = '0 0 8px var(--brand-primary-glow)';
+                    }, 500);
+                }, index * 300);
+            });
+        };
+        
+        // Start pulsing
+        pulseMarkers();
+        // Repeat every 3 seconds
+        setInterval(pulseMarkers, 3000);
+        
+        // Highlight the entity names with neon glow on hover
+        const entityNames = document.querySelectorAll('.entity-name');
+        entityNames.forEach(name => {
+            name.addEventListener('mouseenter', function() {
+                this.classList.add('neon-text-animated');
+            });
+            
+            name.addEventListener('mouseleave', function() {
+                this.classList.remove('neon-text-animated');
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,549 +1,658 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lobbying Search Results - {{ query }}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
-    <style>
-        body {
-            padding-top: 2rem;
-            background-color: #f8f9fa;
-        }
-        .results-container {
-            background-color: white;
-            border-radius: 10px;
-            padding: 1.5rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 2rem;
-        }
-        .result-card {
-            border-left: 4px solid #007bff;
-            margin-bottom: 1rem;
-            transition: transform 0.2s;
-        }
-        .result-card:hover {
-            transform: translateX(5px);
-        }
-        .badge-custom {
-            font-size: 85%;
-        }
-        .search-summary {
-            background-color: #e9ecef;
-            padding: 1rem;
-            border-radius: 10px;
-            margin-bottom: 1.5rem;
-        }
-        .card-title {
-            font-weight: 600;
-            color: #343a40;
-        }
-        .card-subtitle {
-            margin-bottom: 1rem;
-        }
-        .meta-badge {
-            font-size: 80%;
-            margin-right: 0.5rem;
-        }
-        .action-buttons {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 1rem;
-        }
-        .year-badge {
-            background-color: #17a2b8;
-            margin-left: 0.5rem;
-        }
-        .registrant-info {
-            font-style: italic;
-            color: #6c757d;
-        }
-        .action-row {
-            margin-top: 1rem;
-            padding-top: 1rem;
-            border-top: 1px solid rgba(0,0,0,0.1);
-        }
-        .stats-row {
-            margin-bottom: 1.5rem;
-        }
-        .stat-box {
-            background-color: white;
-            border-radius: 6px;
-            padding: 1rem;
-            text-align: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            height: 100%;
-        }
-        .stat-number {
-            font-size: 2.2rem;
-            font-weight: 700;
-            color: #007bff;
-            margin-bottom: 0.25rem;
-        }
-        .stat-label {
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            color: #6c757d;
-            letter-spacing: 0.5px;
-        }
-        .result-type-tag {
-            position: absolute;
-            top: 0;
-            right: 0;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0 10px 0 10px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-        .client-tag {
-            background-color: #e7f5ff;
-            color: #1971c2;
-        }
-        .registrant-tag {
-            background-color: #fff3bf;
-            color: #e67700;
-        }
-        .result-card {
-            position: relative;
-            overflow: hidden;
-        }
-        .entry-year {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            font-size: 0.85rem;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1><i class="bi bi-list-ul"></i> Lobbying Search Results</h1>
-            <div>
-                <a href="{{ url_for('visualize_data', query=query) }}" class="btn btn-info me-2 text-white">
-                    <i class="bi bi-bar-chart-line"></i> Visualize Data
-                </a>
-                <div class="dropdown d-inline-block">
-                    <button class="btn btn-success dropdown-toggle me-2" type="button" id="exportDropdown" 
-                            data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-download"></i> Export CSV
-                    </button>
-                    <ul class="dropdown-menu" aria-labelledby="exportDropdown">
-                        <li><a class="dropdown-item" href="{{ url_for('export_data', query=query, limit=100) }}">Export 100 records</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('export_data', query=query, limit=250) }}">Export 250 records</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('export_data', query=query, limit=500) }}">Export 500 records</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('export_data', query=query, limit=1000) }}">Export 1000 records</a></li>
-                    </ul>
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Search Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h4 class="neon-text mb-1">
+                                {% if search_type == 'registrant' %}
+                                    Registrant
+                                {% elif search_type == 'client' %}
+                                    Client
+                                {% elif search_type == 'lobbyist' %}
+                                    Lobbyist
+                                {% else %}
+                                    Search
+                                {% endif %}
+                                Results: <span class="text-dark">{{ query }}</span>
+                            </h4>
+                            <p class="text-muted mb-0">Found {{ total_count }} results 
+                                {% if search_type == 'registrant' %}
+                                    | {{ grouped_results|length if is_grouped_view else '0' }} matched organizations
+                                {% elif search_type == 'client' %}
+                                    | {{ grouped_results|length if is_grouped_view else '0' }} matched clients
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-1"></i> New Search
+                            </a>
+                        </div>
+                    </div>
                 </div>
-                <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left"></i> New Search
-                </a>
             </div>
         </div>
-        
-        <div class="search-summary">
-            <div class="row">
-                <div class="col-md-8">
-                    <h5>Search Query</h5>
-                    {% if name %}
-                    <p><strong>Lobbyist Name:</strong> {{ name }}</p>
-                    {% else %}
-                    <p><strong>Company/Org:</strong> {{ company }}</p>
-                    {% endif %}
+    </div>
+
+    <!-- Search Parameters Summary -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex align-items-center">
+                    <i class="bi bi-funnel-fill me-2 text-primary"></i>
+                    <h5 class="mb-0">Search Parameters</h5>
                 </div>
-                <div class="col-md-4 text-md-end">
-                    <h5>Results</h5>
-                    <p class="mb-0">
-                        <strong>{{ count }}</strong> filings found
-                        {% if items_per_page %}
-                        <span class="text-muted">(showing {{ items_per_page }} per page)</span>
+                <div class="card-body">
+                    <div class="search-params-grid">
+                        {% if search_type == 'registrant' %}
+                        <div class="search-param-item">
+                            <div class="param-label">Registrant:</div>
+                            <div class="param-value neon-text">{{ query }}</div>
+                        </div>
+                        {% elif search_type == 'client' %}
+                        <div class="search-param-item">
+                            <div class="param-label">Client:</div>
+                            <div class="param-value neon-text">{{ query }}</div>
+                        </div>
+                        {% elif search_type == 'lobbyist' %}
+                        <div class="search-param-item">
+                            <div class="param-label">Lobbyist:</div>
+                            <div class="param-value neon-text">{{ query }}</div>
+                        </div>
                         {% endif %}
-                    </p>
+                        
+                        <!-- Secondary search parameters -->
+                        {% if search_params.search_registrant and search_type != 'registrant' %}
+                        <div class="search-param-item">
+                            <div class="param-label">Registrant:</div>
+                            <div class="param-value">{{ search_params.search_registrant }}</div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if search_params.search_client and search_type != 'client' %}
+                        <div class="search-param-item">
+                            <div class="param-label">Client:</div>
+                            <div class="param-value">{{ search_params.search_client }}</div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if search_params.search_lobbyist and search_type != 'lobbyist' %}
+                        <div class="search-param-item">
+                            <div class="param-label">Lobbyist:</div>
+                            <div class="param-value">{{ search_params.search_lobbyist }}</div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if filters.filing_type and filters.filing_type != 'all' %}
+                        <div class="search-param-item">
+                            <div class="param-label">Report Type:</div>
+                            <div class="param-value">{{ filters.filing_type }}</div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if search_params.year_from or search_params.year_to %}
+                        <div class="search-param-item">
+                            <div class="param-label">Filing Period:</div>
+                            <div class="param-value">
+                                {% if search_params.year_from and search_params.year_to %}
+                                    {{ search_params.year_from }} - {{ search_params.year_to }}
+                                {% elif search_params.year_from %}
+                                    {{ search_params.year_from }} - Present
+                                {% elif search_params.year_to %}
+                                    Through {{ search_params.year_to }}
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if search_params.issue_area %}
+                        <div class="search-param-item">
+                            <div class="param-label">Issue Area:</div>
+                            <div class="param-value">{{ search_params.issue_area }}</div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if search_params.government_entity %}
+                        <div class="search-param-item">
+                            <div class="param-label">Government Entity:</div>
+                            <div class="param-value">{{ search_params.government_entity }}</div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if search_params.amount_min %}
+                        <div class="search-param-item">
+                            <div class="param-label">Min Amount:</div>
+                            <div class="param-value">${{ '{:,}'.format(search_params.amount_min|int) }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('index') }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-pencil me-1"></i> Modify Search
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
-        
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ 'danger' if category == 'error' else category }}">
-                        {{ message }}
-                    </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-        
-        {% if count > 0 %}
-            <!-- Quick Stats -->
-            <div class="row stats-row">
-                <div class="col-lg-3 col-md-6 mb-4">
-                    <div class="stat-box">
-                        <div class="stat-number">{{ count }}</div>
-                        <div class="stat-label">Total Filings</div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-md-6 mb-4">
-                    <div class="stat-box">
-                        <div class="stat-number">
-                            {% set unique_years = [] %}
-                            {% for filing in results %}
-                                {% if filing.filing_year and filing.filing_year not in unique_years %}
-                                    {% set _ = unique_years.append(filing.filing_year) %}
-                                {% endif %}
-                            {% endfor %}
-                            {{ unique_years|length if unique_years else "N/A" }}
-                        </div>
-                        <div class="stat-label">Years Active</div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-md-6 mb-4">
-                    <div class="stat-box">
-                        <div class="stat-number">
-                            {% set unique_registrants = [] %}
-                            {% for filing in results %}
-                                {% if filing.registrant and filing.registrant not in unique_registrants %}
-                                    {% set _ = unique_registrants.append(filing.registrant) %}
-                                {% endif %}
-                            {% endfor %}
-                            {{ unique_registrants|length if unique_registrants else "N/A" }}
-                        </div>
-                        <div class="stat-label">Lobbying Firms</div>
-                    </div>
-                </div>
-                <div class="col-lg-3 col-md-6 mb-4">
-                    <div class="stat-box">
-                        <div class="stat-number">
-                            {% set total_amount = 0 %}
-                            {% set amount_count = 0 %}
-                            {% for filing in results %}
-                                {% if filing.amount %}
-                                    {% set total_amount = total_amount + filing.amount %}
-                                    {% set amount_count = amount_count + 1 %}
-                                {% endif %}
-                            {% endfor %}
-                            {{ "$" + "{:,.0f}".format(total_amount) if amount_count else "N/A" }}
-                        </div>
-                        <div class="stat-label">Reported Amount</div>
-                    </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3 mb-md-0">
+            <div class="stats-card neon-glow">
+                <div class="stats-value neon-text">{{ total_count }}</div>
+                <div class="stats-label">TOTAL RESULTS</div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3 mb-md-0">
+            <div class="stats-card neon-orange-glow">
+                <div class="stats-value neon-text-orange">${{ '{:,}'.format(total_amount) }}</div>
+                <div class="stats-label">TOTAL LOBBYING AMOUNT</div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3 mb-md-0">
+            <div class="stats-card neon-glow">
+                <div class="stats-value neon-text">{{ unique_clients }}</div>
+                <div class="stats-label">UNIQUE CLIENTS</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card neon-orange-glow">
+                <div class="stats-value neon-text-orange">{{ latest_filing_date }}</div>
+                <div class="stats-label">LATEST FILING</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="year-filter-section mb-4">
+        <div class="row align-items-center">
+            <div class="col-md-3">
+                <h6 class="neon-text mb-2">Filter By Year:</h6>
+            </div>
+            <div class="col-md-9">
+                <div class="d-flex flex-wrap">
+                    <a href="{{ url_for('search', query=query, search_type=search_type, filing_year='all', filing_type=filters.get('filing_type', 'all')) }}" 
+                       class="year-filter-btn {% if current_filing_year == 'all' %}active{% endif %}">
+                        All Years
+                    </a>
+                    {% for year in filing_years %}
+                    <a href="{{ url_for('search', query=query, search_type=search_type, filing_year=year, filing_type=filters.get('filing_type', 'all')) }}" 
+                       class="year-filter-btn {% if current_filing_year|string == year|string %}active{% endif %}">
+                        {{ year }}
+                    </a>
+                    {% endfor %}
                 </div>
             </div>
-        {% endif %}
-        
-        {% if results %}
-            <div class="results-container">
-                {% if results|length > 5 %}
-                    <div class="action-buttons mb-3">
-                        <div class="dropdown">
-                            <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-sort-down"></i> Sort By
-                            </button>
-                            <ul class="dropdown-menu" aria-labelledby="sortDropdown">
-                                <li><a class="dropdown-item" href="#" data-sort="date-desc">Date (Newest First)</a></li>
-                                <li><a class="dropdown-item" href="#" data-sort="date-asc">Date (Oldest First)</a></li>
-                                <li><a class="dropdown-item" href="#" data-sort="amount-desc">Amount (High to Low)</a></li>
-                                <li><a class="dropdown-item" href="#" data-sort="amount-asc">Amount (Low to High)</a></li>
-                                <li><a class="dropdown-item" href="#" data-sort="client">Client Name (A-Z)</a></li>
-                                <li><a class="dropdown-item" href="#" data-sort="registrant">Registrant Name (A-Z)</a></li>
-                            </ul>
-                        </div>
-                        
-                        <div class="dropdown">
-                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-funnel"></i> Filter
-                            </button>
-                            <ul class="dropdown-menu" aria-labelledby="filterDropdown">
-                                <li><h6 class="dropdown-header">Filing Year</h6></li>
-                                {% set unique_years = [] %}
-                                {% for filing in results %}
-                                    {% if filing.filing_year and filing.filing_year not in unique_years %}
-                                        {% set _ = unique_years.append(filing.filing_year) %}
-                                    {% endif %}
-                                {% endfor %}
-                                {% for year in unique_years|sort(reverse=true) %}
-                                    <li>
-                                        <a class="dropdown-item filter-year" href="#" data-year="{{ year }}">
-                                            {{ year }}
-                                        </a>
-                                    </li>
-                                {% endfor %}
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="#" data-filter="reset">Show All</a></li>
-                            </ul>
-                        </div>
+        </div>
+    </div>
+
+    <!-- No Results Message -->
+    {% if total_count == 0 %}
+    <div class="card mb-4">
+        <div class="card-body text-center py-5">
+            <div class="empty-state">
+                <i class="bi bi-search empty-icon"></i>
+                <h4 class="mt-4">No results found</h4>
+                <p class="text-muted mb-4">We couldn't find any lobbying records matching your search criteria.</p>
+                
+                {% if alt_terms and alt_terms|length > 0 %}
+                <div class="alt-term-suggestions">
+                    <h5 class="mb-3">Did you mean?</h5>
+                    <div class="d-flex flex-wrap justify-content-center">
+                        {% for term in alt_terms %}
+                        <a href="{{ url_for('search', query=term, search_type=search_type, filing_year=current_filing_year) }}" class="btn btn-outline-primary m-1">
+                            {{ term }}
+                        </a>
+                        {% endfor %}
                     </div>
+                </div>
                 {% endif %}
                 
-                <div id="results-list">
-                    {% for filing in results %}
-                    <div class="card result-card" 
-                         data-date="{{ filing.filing_date }}" 
-                         data-amount="{{ filing.amount|default(0) }}"
-                         data-client="{{ filing.client }}"
-                         data-registrant="{{ filing.registrant }}"
-                         data-year="{{ filing.filing_year }}">
-                        {% if name %}
-                            <span class="result-type-tag registrant-tag">Registrant</span>
-                        {% else %}
-                            <span class="result-type-tag client-tag">Client</span>
-                        {% endif %}
+                <div class="mt-4">
+                    <a href="{{ url_for('index') }}" class="btn btn-primary">
+                        <i class="bi bi-arrow-left me-2"></i> Back to Search
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+        <!-- Results Section -->
+        {% if is_grouped_view %}
+        <!-- Grouped View (for Organizations) -->
+        <div class="row">
+            {% for group in grouped_results %}
+            <div class="col-12 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0 entity-name">{{ group.entity.name }}</h5>
+                            <span class="badge bg-primary">{{ group.filings|length }} Filings</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <div class="entity-stat">
+                                    <div class="stat-label">Total Amount</div>
+                                    <div class="stat-value amount-value">${{ '{:,.0f}'.format(group.total_amount) }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="entity-stat">
+                                    <div class="stat-label">Latest Filing</div>
+                                    <div class="stat-value">{{ group.latest_filing }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="entity-stat">
+                                    <div class="stat-label">Years Active</div>
+                                    <div class="stat-value">
+                                        {% for year in group.years[:3] %}
+                                        <span class="year-badge">{{ year }}</span>
+                                        {% endfor %}
+                                        {% if group.years|length > 3 %}
+                                        <span class="year-badge">+{{ group.years|length - 3 }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <h6 class="mb-2 neon-text-subtle">Recent Filings</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 15%">Date</th>
+                                            <th style="width: 35%;">{% if search_type == 'registrant' %}Client{% else %}Registrant{% endif %}</th>
+                                            <th style="width: 30%;">Type</th>
+                                            <th style="width: 20%;" class="text-end">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for filing in group.filings[:3] %}
+                                        <tr onclick="window.location='{{ url_for('filing_detail', filing_id=filing.id) }}';" class="filing-row">
+                                            <td class="filing-date">{{ filing.dt_posted|format_date if filing.dt_posted else 'N/A' }}</td>
+                                            <td>
+                                                {% if search_type == 'registrant' %}
+                                                <div class="entity-name">{{ filing.client.name }}</div>
+                                                {% else %}
+                                                <div class="entity-name">{{ filing.registrant.name }}</div>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ filing.type_display }}</td>
+                                            <td class="text-end amount-value">{{ filing.income|format_currency if filing.income else filing.expenses|format_currency }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                         
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between">
-                                <h5 class="card-title">{{ filing.client }}</h5>
-                                <span class="text-muted">{{ filing.filing_date }}</span>
-                            </div>
-                            
-                            <h6 class="card-subtitle mb-2 text-muted">
-                                <i class="bi bi-building"></i> Registrant: {{ filing.registrant }}
-                                {% if filing.filing_type %}
-                                    <span class="badge bg-secondary meta-badge">{{ filing.filing_type }}</span>
-                                {% endif %}
-                                {% if filing.filing_year %}
-                                    <span class="badge bg-info text-dark meta-badge">{{ filing.filing_year }}</span>
-                                {% endif %}
-                                {% if filing.period %}
-                                    <span class="badge bg-light text-dark meta-badge border">{{ filing.period }}</span>
-                                {% endif %}
-                            </h6>
-                            
-                            <div class="row mt-3">
-                                <div class="col-md-6">
-                                    <p class="mb-1"><strong><i class="bi bi-people"></i> Lobbyists:</strong></p>
-                                    {% if filing.lobbyists %}
-                                        <div>
-                                        {% for lobbyist in filing.lobbyists %}
-                                            <span class="badge bg-secondary badge-custom me-1 mb-1">{{ lobbyist }}</span>
-                                        {% endfor %}
-                                        </div>
-                                    {% else %}
-                                        <p class="text-muted small">None listed</p>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-6">
-                                    <p class="mb-1"><strong><i class="bi bi-bank"></i> Agencies:</strong></p>
-                                    {% if filing.agencies %}
-                                        <div>
-                                        {% for agency in filing.agencies %}
-                                            <span class="badge bg-info text-dark badge-custom me-1 mb-1">{{ agency }}</span>
-                                        {% endfor %}
-                                        </div>
-                                    {% else %}
-                                        <p class="text-muted small">None listed</p>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            
-                            <p class="mt-2 mb-1"><strong><i class="bi bi-chat-left-text"></i> Issues:</strong></p>
-                            <p class="small">{{ filing.issues|truncate_text(300) }}</p>
-                            
-                            {% if filing.amount %}
-                            <p class="mt-2 mb-1"><strong><i class="bi bi-currency-dollar"></i> Amount:</strong> {{ filing.amount|format_currency }}</p>
-                            {% endif %}
-                            
-                            <div class="action-row">
-                                <a href="{{ url_for('filing_detail', filing_id=filing.id) }}" class="btn btn-sm btn-primary">
-                                    <i class="bi bi-file-earmark-text"></i> View Full Filing
+                        <div class="text-center mt-3">
+                            <a href="{{ url_for('search', query=query, search_type=search_type) }}" class="btn btn-outline-primary btn-sm">
+                                View All Filings
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <!-- Standard View (List of Filings) -->
+        <div class="card results-table-wrapper mb-5">
+            <div class="card-body p-0">
+                <!-- Results Table Filter -->
+                <div class="p-3 border-bottom">
+                    <div class="row">
+                        <div class="col-md-9">
+                            <input type="text" id="tableFilter" class="form-control" placeholder="Filter results by client, registrant, or filing type...">
+                        </div>
+                        <div class="col-md-3 d-flex justify-content-end align-items-center mt-3 mt-md-0">
+                            <div class="btn-group">
+                                <a href="{{ url_for('export_data', query=query) }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-download me-1"></i> Export CSV
+                                </a>
+                                <a href="{{ url_for('visualize_data', query=query) }}" class="btn btn-outline-secondary btn-sm">
+                                    <i class="bi bi-bar-chart me-1"></i> Visualize
                                 </a>
                             </div>
                         </div>
                     </div>
-                    {% endfor %}
+                </div>
+        
+                <!-- Table of Results -->
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="resultsTable">
+                        <thead>
+                            <tr>
+                                <th class="sorting" data-sort="date">Date</th>
+                                <th class="sorting" data-sort="registrant">Registrant</th>
+                                <th class="sorting" data-sort="client">Client</th>
+                                <th class="sorting" data-sort="type">Filing Type</th>
+                                <th class="sorting text-end" data-sort="amount">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for filing in results %}
+                            <tr onclick="window.location='{{ url_for('filing_detail', filing_id=filing.id) }}';" class="filing-row">
+                                <td>
+                                    <div class="filing-date">{{ filing.dt_posted|format_date if filing.dt_posted else 'N/A' }}</div>
+                                    <div class="filing-id text-muted">{{ filing.id }}</div>
+                                </td>
+                                <td>
+                                    <div class="entity-name">{{ filing.registrant.name }}</div>
+                                </td>
+                                <td>
+                                    <div class="entity-name">{{ filing.client.name }}</div>
+                                </td>
+                                <td>{{ filing.type_display }}</td>
+                                <td class="text-end">
+                                    <div class="amount-value">
+                                        {{ filing.income|format_currency if filing.income else filing.expenses|format_currency }}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    
+                    <!-- Table Empty State -->
+                    <div id="tableEmptyState" class="text-center py-5 d-none">
+                        <i class="bi bi-search fs-1 text-muted"></i>
+                        <p class="mt-3 mb-0">No results match your filter criteria</p>
+                    </div>
                 </div>
                 
-                <!-- Enhanced Pagination -->
-                {% if pagination.total_pages > 1 %}
-                <nav aria-label="Page navigation" class="mt-4">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <div>
-                            Showing page {{ current_page }} of {{ pagination.total_pages }}
-                        </div>
-                        <div class="dropdown">
-                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" 
-                                    id="pageSizeDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                {{ items_per_page }} per page
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="pageSizeDropdown">
-                                <li>
-                                    <form action="{{ url_for('search_lobbying') }}" method="post" id="pageSizeForm">
-                                        <input type="hidden" name="name" value="{{ name }}">
-                                        <input type="hidden" name="company" value="{{ company }}">
-                                        <input type="hidden" name="year_from" value="{{ year_from }}">
-                                        <input type="hidden" name="year_to" value="{{ year_to }}">
-                                        <input type="hidden" name="issue_area" value="{{ issue_area }}">
-                                        <input type="hidden" name="agency" value="{{ agency }}">
-                                        <input type="hidden" name="amount_min" value="{{ amount_min }}">
-                                        <input type="hidden" name="data_source" value="{{ data_source }}">
-                                        
-                                        {% for size in [10, 25, 50, 100] %}
-                                        <button type="submit" name="items_per_page" value="{{ size }}" 
-                                                class="dropdown-item {% if items_per_page == size %}active{% endif %}">
-                                            {{ size }} results
-                                        </button>
-                                        {% endfor %}
-                                    </form>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                    
-                    <ul class="pagination justify-content-center">
-                        {% if pagination.has_prev %}
-                        <li class="page-item">
-                            <a class="page-link" href="{{ url_for('show_results', page=1) }}" aria-label="First">
-                                <i class="bi bi-chevron-double-left"></i>
-                            </a>
-                        </li>
-                        <li class="page-item">
-                            <a class="page-link" href="{{ url_for('show_results', page=pagination.prev_page) }}" aria-label="Previous">
-                                <i class="bi bi-chevron-left"></i>
-                            </a>
-                        </li>
-                        {% else %}
-                        <li class="page-item disabled">
-                            <span class="page-link"><i class="bi bi-chevron-double-left"></i></span>
-                        </li>
-                        <li class="page-item disabled">
-                            <span class="page-link"><i class="bi bi-chevron-left"></i></span>
-                        </li>
-                        {% endif %}
-                        
-                        {% for p in pagination.page_range %}
-                        <li class="page-item {% if p == current_page %}active{% endif %}">
-                            <a class="page-link" href="{{ url_for('show_results', page=p) }}">{{ p }}</a>
-                        </li>
-                        {% endfor %}
-                        
-                        {% if pagination.has_next %}
-                        <li class="page-item">
-                            <a class="page-link" href="{{ url_for('show_results', page=pagination.next_page) }}" aria-label="Next">
-                                <i class="bi bi-chevron-right"></i>
-                            </a>
-                        </li>
-                        <li class="page-item">
-                            <a class="page-link" href="{{ url_for('show_results', page=pagination.total_pages) }}" aria-label="Last">
-                                <i class="bi bi-chevron-double-right"></i>
-                            </a>
-                        </li>
-                        {% else %}
-                        <li class="page-item disabled">
-                            <span class="page-link"><i class="bi bi-chevron-right"></i></span>
-                        </li>
-                        <li class="page-item disabled">
-                            <span class="page-link"><i class="bi bi-chevron-double-right"></i></span>
-                        </li>
-                        {% endif %}
-                    </ul>
-                </nav>
+                <!-- Load More Button (if needed) -->
+                {% if results|length > 20 and page < pagination.total_pages %}
+                <button id="loadMoreBtn" class="load-more-btn">
+                    Load More Results
+                    <span class="badge bg-primary ms-2">{{ pagination.count - (page * results|length) }}</span>
+                </button>
                 {% endif %}
             </div>
-        {% else %}
-            <div class="alert alert-warning">
-                <i class="bi bi-exclamation-triangle"></i> No results found for this search. Please try different search terms.
-            </div>
+        </div>
+        
+        <!-- Pagination -->
+        {% if pagination and pagination.total_pages > 1 %}
+        <nav aria-label="Results pagination">
+            <ul class="pagination">
+                <!-- First Page -->
+                <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('show_results', page=1, query=query, search_type=search_type, filing_type=filters.get('filing_type', 'all'), filing_year=filters.get('filing_year', 'all')) }}">
+                        <i class="bi bi-chevron-double-left"></i>
+                    </a>
+                </li>
+                
+                <!-- Previous Page -->
+                <li class="page-item {% if page == 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('show_results', page=page-1, query=query, search_type=search_type, filing_type=filters.get('filing_type', 'all'), filing_year=filters.get('filing_year', 'all')) }}">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+                </li>
+                
+                <!-- Page Numbers -->
+                {% set start_page = [page - 2, 1]|max %}
+                {% set end_page = [start_page + 4, pagination.total_pages]|min %}
+                {% set start_page = [end_page - 4, 1]|max %}
+                
+                {% for p in range(start_page, end_page + 1) %}
+                <li class="page-item {% if p == page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('show_results', page=p, query=query, search_type=search_type, filing_type=filters.get('filing_type', 'all'), filing_year=filters.get('filing_year', 'all')) }}">
+                        {{ p }}
+                    </a>
+                </li>
+                {% endfor %}
+                
+                <!-- Next Page -->
+                <li class="page-item {% if page >= pagination.total_pages %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('show_results', page=page+1, query=query, search_type=search_type, filing_type=filters.get('filing_type', 'all'), filing_year=filters.get('filing_year', 'all')) }}">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </li>
+                
+                <!-- Last Page -->
+                <li class="page-item {% if page >= pagination.total_pages %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('show_results', page=pagination.total_pages, query=query, search_type=search_type, filing_type=filters.get('filing_type', 'all'), filing_year=filters.get('filing_year', 'all')) }}">
+                        <i class="bi bi-chevron-double-right"></i>
+                    </a>
+                </li>
+            </ul>
+        </nav>
         {% endif %}
-    </div>
+        {% endif %}
+    {% endif %}
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Sorting functionality
-            const sortLinks = document.querySelectorAll('[data-sort]');
-            sortLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const sortType = this.dataset.sort;
-                    sortResults(sortType);
-                });
-            });
-            
-            // Filtering functionality
-            const filterLinks = document.querySelectorAll('[data-filter], [data-year]');
-            filterLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    
-                    if (this.dataset.filter === 'reset') {
-                        // Show all results
-                        resetFilters();
-                    } else if (this.dataset.year) {
-                        // Filter by year
-                        filterByYear(this.dataset.year);
-                    }
-                });
-            });
-            
-            // Function to sort results
-            function sortResults(sortType) {
-                const resultsContainer = document.getElementById('results-list');
-                const results = Array.from(resultsContainer.children);
+<style>
+    .search-params-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+    
+    .search-param-item {
+        margin-bottom: 0.5rem;
+    }
+    
+    .param-label {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        margin-bottom: 0.25rem;
+    }
+    
+    .param-value {
+        font-weight: 600;
+    }
+    
+    .entity-stat {
+        margin-bottom: 1rem;
+    }
+    
+    .stat-label {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+    
+    .stat-value {
+        font-weight: 700;
+        font-size: 1.2rem;
+    }
+    
+    .year-badge {
+        display: inline-block;
+        background: rgba(13, 110, 253, 0.1);
+        color: var(--brand-primary);
+        font-size: 0.8rem;
+        padding: 0.15rem 0.5rem;
+        border-radius: 4px;
+        margin-right: 0.25rem;
+        font-weight: 600;
+    }
+    
+    .filing-row {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .filing-row:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        z-index: 10;
+        position: relative;
+    }
+    
+    .empty-state {
+        padding: 2rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        max-width: 500px;
+        margin: 0 auto;
+    }
+    
+    .empty-icon {
+        font-size: 3rem;
+        color: var(--text-muted);
+        opacity: 0.5;
+    }
+    
+    .alt-term-suggestions {
+        background-color: rgba(13, 110, 253, 0.05);
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+    }
+</style>
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Table filtering functionality
+        const tableFilter = document.getElementById('tableFilter');
+        const resultsTable = document.getElementById('resultsTable');
+        const tableBody = resultsTable ? resultsTable.querySelector('tbody') : null;
+        const tableRows = tableBody ? tableBody.querySelectorAll('tr') : [];
+        const tableEmptyState = document.getElementById('tableEmptyState');
+        
+        if (tableFilter && tableRows.length) {
+            tableFilter.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                let visibleRows = 0;
                 
-                results.sort((a, b) => {
-                    switch(sortType) {
-                        case 'date-desc':
-                            return compareDates(b.dataset.date, a.dataset.date);
-                        case 'date-asc':
-                            return compareDates(a.dataset.date, b.dataset.date);
-                        case 'amount-desc':
-                            return parseFloat(b.dataset.amount || 0) - parseFloat(a.dataset.amount || 0);
-                        case 'amount-asc':
-                            return parseFloat(a.dataset.amount || 0) - parseFloat(b.dataset.amount || 0);
-                        case 'client':
-                            return a.dataset.client.localeCompare(b.dataset.client);
-                        case 'registrant':
-                            return a.dataset.registrant.localeCompare(b.dataset.registrant);
-                        default:
-                            return 0;
-                    }
-                });
-                
-                // Clear container and append sorted results
-                while (resultsContainer.firstChild) {
-                    resultsContainer.removeChild(resultsContainer.firstChild);
-                }
-                
-                results.forEach(result => {
-                    resultsContainer.appendChild(result);
-                });
-            }
-            
-            // Compare dates helper function
-            function compareDates(a, b) {
-                // Handle 'Unknown' dates
-                if (a === 'Unknown' && b === 'Unknown') return 0;
-                if (a === 'Unknown') return 1;
-                if (b === 'Unknown') return -1;
-                
-                // Try parsing dates
-                try {
-                    return new Date(b) - new Date(a);
-                } catch (e) {
-                    return 0;
-                }
-            }
-            
-            // Function to filter by year
-            function filterByYear(year) {
-                const results = document.querySelectorAll('.result-card');
-                
-                results.forEach(result => {
-                    if (result.dataset.year === year) {
-                        result.style.display = '';
+                tableRows.forEach(row => {
+                    const rowText = row.textContent.toLowerCase();
+                    if (rowText.includes(searchTerm)) {
+                        row.style.display = '';
+                        visibleRows++;
                     } else {
-                        result.style.display = 'none';
+                        row.style.display = 'none';
                     }
                 });
+                
+                // Show/hide empty state
+                if (tableEmptyState) {
+                    if (visibleRows === 0) {
+                        tableEmptyState.classList.remove('d-none');
+                        if (tableBody) tableBody.classList.add('d-none');
+                    } else {
+                        tableEmptyState.classList.add('d-none');
+                        if (tableBody) tableBody.classList.remove('d-none');
+                    }
+                }
+            });
+        }
+        
+        // Table sorting functionality
+        const sortingHeaders = document.querySelectorAll('.sorting');
+        sortingHeaders.forEach(header => {
+            header.addEventListener('click', function() {
+                const sortKey = this.getAttribute('data-sort');
+                const isAscending = !this.classList.contains('sorted') || this.classList.contains('sorted-desc');
+                
+                // Remove sorting class from all headers
+                sortingHeaders.forEach(h => {
+                    h.classList.remove('sorted', 'sorted-asc', 'sorted-desc');
+                });
+                
+                // Add sorting class to clicked header
+                this.classList.add('sorted');
+                this.classList.add(isAscending ? 'sorted-asc' : 'sorted-desc');
+                
+                // Sort the table rows
+                if (tableRows.length) {
+                    const sortedRows = Array.from(tableRows).sort((a, b) => {
+                        let aValue, bValue;
+                        
+                        // Extract values based on sort key
+                        if (sortKey === 'date') {
+                            aValue = a.querySelector('.filing-date').textContent.trim();
+                            bValue = b.querySelector('.filing-date').textContent.trim();
+                        } else if (sortKey === 'registrant') {
+                            aValue = a.cells[1].textContent.trim().toLowerCase();
+                            bValue = b.cells[1].textContent.trim().toLowerCase();
+                        } else if (sortKey === 'client') {
+                            aValue = a.cells[2].textContent.trim().toLowerCase();
+                            bValue = b.cells[2].textContent.trim().toLowerCase();
+                        } else if (sortKey === 'type') {
+                            aValue = a.cells[3].textContent.trim().toLowerCase();
+                            bValue = b.cells[3].textContent.trim().toLowerCase();
+                        } else if (sortKey === 'amount') {
+                            // Extract numeric value from currency format
+                            aValue = a.cells[4].textContent.trim().replace(/[$,]/g, '');
+                            bValue = b.cells[4].textContent.trim().replace(/[$,]/g, '');
+                            aValue = parseFloat(aValue) || 0;
+                            bValue = parseFloat(bValue) || 0;
+                        }
+                        
+                        // Compare values
+                        if (aValue < bValue) return isAscending ? -1 : 1;
+                        if (aValue > bValue) return isAscending ? 1 : -1;
+                        return 0;
+                    });
+                    
+                    // Reorder rows in the DOM
+                    sortedRows.forEach(row => {
+                        tableBody.appendChild(row);
+                    });
+                    
+                    // Highlight the sorted column
+                    highlightSortedColumn(sortKey);
+                }
+            });
+        });
+        
+        function highlightSortedColumn(sortKey) {
+            // Remove highlighting from all columns
+            const allCells = document.querySelectorAll('#resultsTable td');
+            allCells.forEach(cell => cell.classList.remove('sorted-column'));
+            
+            // Add highlighting to sorted column
+            let columnIndex;
+            switch (sortKey) {
+                case 'date': columnIndex = 0; break;
+                case 'registrant': columnIndex = 1; break;
+                case 'client': columnIndex = 2; break;
+                case 'type': columnIndex = 3; break;
+                case 'amount': columnIndex = 4; break;
             }
             
-            // Function to reset filters
-            function resetFilters() {
-                const results = document.querySelectorAll('.result-card');
-                
-                results.forEach(result => {
-                    result.style.display = '';
+            if (columnIndex !== undefined) {
+                tableRows.forEach(row => {
+                    row.cells[columnIndex].classList.add('sorted-column');
                 });
             }
-        });
-    </script>
-</body>
-</html>
+        }
+        
+        // Load More button functionality
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', function() {
+                // Get current page and navigate to next page
+                const currentPage = parseInt("{{ page }}");
+                const nextPage = currentPage + 1;
+                window.location = "{{ url_for('show_results', page=page+1, query=query, search_type=search_type, filing_type=filters.get('filing_type', 'all'), filing_year=filters.get('filing_year', 'all')) }}";
+            });
+        }
+    });
+</script>
+{% endblock %}
+{% endblock %}
