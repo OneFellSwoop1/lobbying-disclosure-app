@@ -49,6 +49,7 @@ Thumbs.db
 # Logs and diagnostic files
 logs/*.log*
 lda_api_diagnostic_*.json
+lda_api_diagnostic.log
 
 # Cache and temporary files
 cache/
